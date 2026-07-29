@@ -1,0 +1,457 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Scripture Control</title>
+		<style>
+			:root {
+				--bg-color: #f7f6f3;
+				--text-color: #2b2b2b;
+				--search-bg: #ffffff;
+				--search-border: #d8d5cf;
+				--search-focus-border: #b8965a;
+				--search-focus-ring: rgba(184, 150, 90, 0.2);
+				--info-bg: #efece4;
+				--info-text: #6b6558;
+				--info-bold: #8a6a2f;
+				--panel-bg: #ffffff;
+				--panel-border: #e4e1d9;
+				--scrollbar-track: #f2f0ea;
+				--scrollbar-thumb: #d3ceb8;
+				--scrollbar-thumb-hover: #c2bb9e;
+				--result-border: #edeae2;
+				--result-hover: #faf8f3;
+				--result-active-bg: #fbf2dd;
+				--result-active-border: #c99a3f;
+				--result-focused-bg: #eef2fb;
+				--result-focused-outline: #6a8fe8;
+				--ref-color: #a3781f;
+				--btn-bg: #e4e1d9;
+				--btn-hover: #d8d4c9;
+				--btn-text: #2b2b2b;
+				--clear-bg: #f1d9d9;
+				--clear-hover: #e8c8c8;
+				--clear-text: #7a2b2b;
+				--menu-bg: #ffffff;
+				--menu-border: #d8d5cf;
+				--menu-hover: #f2f0ea;
+				--toast-bg: #2b2b2b;
+				--toast-text: #ffffff;
+			}
+
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg-color: #121417;
+					--text-color: #e2e8f0;
+					--search-bg: #1a1d24;
+					--search-border: #2d333f;
+					--search-focus-border: #d4a359;
+					--search-focus-ring: rgba(212, 163, 89, 0.25);
+					--info-bg: #1e222b;
+					--info-text: #94a3b8;
+					--info-bold: #e5b367;
+					--panel-bg: #1a1d24;
+					--panel-border: #2d333f;
+					--scrollbar-track: #15181e;
+					--scrollbar-thumb: #3a4252;
+					--scrollbar-thumb-hover: #4e586e;
+					--result-border: #262c38;
+					--result-hover: #222731;
+					--result-active-bg: #2d2618;
+					--result-active-border: #d4a359;
+					--result-focused-bg: #1c273c;
+					--result-focused-outline: #5b82e6;
+					--ref-color: #e5b367;
+					--btn-bg: #2a303c;
+					--btn-hover: #353d4d;
+					--btn-text: #e2e8f0;
+					--clear-bg: #401e22;
+					--clear-hover: #54272c;
+					--clear-text: #f87171;
+					--menu-bg: #1a1d24;
+					--menu-border: #2d333f;
+					--menu-hover: #262c38;
+					--toast-bg: #e2e8f0;
+					--toast-text: #121417;
+				}
+			}
+
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			body {
+				font-family:
+					"Segoe UI",
+					"Inter",
+					system-ui,
+					-apple-system,
+					sans-serif;
+				background: var(--bg-color);
+				color: var(--text-color);
+				padding: 28px;
+				transition: background 0.2s ease, color 0.2s ease;
+			}
+			#search {
+				width: 100%;
+				font-size: 26px;
+				padding: 14px 16px;
+				border-radius: 10px;
+				border: 1px solid var(--search-border);
+				background: var(--search-bg);
+				color: var(--text-color);
+				box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+				transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+			}
+			#search:focus {
+				outline: none;
+				border-color: var(--search-focus-border);
+				box-shadow: 0 0 0 3px var(--search-focus-ring);
+			}
+			#current-book {
+				margin-top: 12px;
+				padding: 10px 14px;
+				background: var(--info-bg);
+				border-radius: 8px;
+				font-size: 14px;
+				color: var(--info-text);
+				transition: background 0.2s ease, color 0.2s ease;
+			}
+			#current-book b {
+				color: var(--info-bold);
+			}
+			#results {
+				margin-top: 12px;
+				max-height: 60vh;
+				overflow-y: auto;
+				border-radius: 10px;
+				border: 1px solid var(--panel-border);
+				background: var(--panel-bg);
+				transition: background 0.2s ease, border-color 0.2s ease;
+			}
+			/* Custom scrollbar */
+			#results::-webkit-scrollbar {
+				width: 10px;
+			}
+			#results::-webkit-scrollbar-track {
+				background: var(--scrollbar-track);
+				border-radius: 10px;
+			}
+			#results::-webkit-scrollbar-thumb {
+				background: var(--scrollbar-thumb);
+				border-radius: 10px;
+				border: 2px solid var(--scrollbar-track);
+			}
+			#results::-webkit-scrollbar-thumb:hover {
+				background: var(--scrollbar-thumb-hover);
+			}
+			#results {
+				scrollbar-width: thin;
+				scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+			}
+
+			.result {
+				padding: 12px 16px;
+				border-bottom: 1px solid var(--result-border);
+				cursor: pointer;
+				line-height: 1.5;
+				position: relative;
+				transition: background 0.15s ease, border-color 0.15s ease;
+			}
+			.result:last-child {
+				border-bottom: none;
+			}
+			.result:hover {
+				background: var(--result-hover);
+			}
+			.result.active {
+				background: var(--result-active-bg);
+				border-left: 4px solid var(--result-active-border);
+				padding-left: 12px;
+			}
+			.result.focused {
+				background: var(--result-focused-bg);
+				outline: 2px solid var(--result-focused-outline);
+				outline-offset: -2px;
+			}
+			.result .ref {
+				color: var(--ref-color);
+				font-weight: 600;
+				margin-right: 8px;
+			}
+
+			#controls {
+				margin-top: 16px;
+				display: flex;
+				gap: 10px;
+			}
+			button {
+				padding: 11px 18px;
+				border: none;
+				border-radius: 8px;
+				background: var(--btn-bg);
+				color: var(--btn-text);
+				cursor: pointer;
+				font-size: 15px;
+				font-weight: 500;
+				transition: background 0.15s ease, color 0.15s ease;
+			}
+			button:hover {
+				background: var(--btn-hover);
+			}
+			#clearBtn {
+				background: var(--clear-bg);
+				color: var(--clear-text);
+			}
+			#clearBtn:hover {
+				background: var(--clear-hover);
+			}
+
+			/* Right-click context menu */
+			#contextMenu {
+				position: fixed;
+				display: none;
+				background: var(--menu-bg);
+				border: 1px solid var(--menu-border);
+				border-radius: 8px;
+				box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+				padding: 6px;
+				z-index: 1000;
+				min-width: 160px;
+			}
+			#contextMenu .menu-item {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				padding: 9px 12px;
+				border-radius: 6px;
+				cursor: pointer;
+				font-size: 14px;
+				color: var(--text-color);
+			}
+			#contextMenu .menu-item:hover {
+				background: var(--menu-hover);
+			}
+			#contextMenu svg {
+				width: 16px;
+				height: 16px;
+				flex-shrink: 0;
+			}
+
+			#toast {
+				position: fixed;
+				bottom: 24px;
+				left: 50%;
+				transform: translateX(-50%) translateY(20px);
+				background: var(--toast-bg);
+				color: var(--toast-text);
+				padding: 10px 18px;
+				border-radius: 8px;
+				font-size: 14px;
+				font-weight: 500;
+				opacity: 0;
+				pointer-events: none;
+				transition:
+					opacity 0.25s ease,
+					transform 0.25s ease;
+			}
+			#toast.show {
+				opacity: 1;
+				transform: translateX(-50%) translateY(0);
+			}
+		</style>
+	</head>
+	<body>
+		<input
+			id="search"
+			placeholder="Search: John 3:16, a phrase, or keywords..."
+			autocomplete="off"
+		/>
+		<div id="current-book">
+			Currently viewing: <b id="current-book-name">—</b>
+		</div>
+		<div id="results"></div>
+		<div id="controls">
+			<button id="clearBtn">Clear Output</button>
+		</div>
+
+		<div id="contextMenu">
+			<div class="menu-item" id="copyItem">
+				<svg
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+				>
+					<rect x="9" y="9" width="11" height="11" rx="2" />
+					<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+				</svg>
+				Copy verse
+			</div>
+		</div>
+
+		<div id="toast">Copied to clipboard</div>
+
+		<script>
+			const searchEl = document.getElementById("search");
+			const resultsEl = document.getElementById("results");
+			const currentBookEl = document.getElementById("current-book-name");
+			const contextMenu = document.getElementById("contextMenu");
+			const toast = document.getElementById("toast");
+			const ws = new WebSocket(`ws://${location.host}/ws`);
+
+			let currentRef = null;
+			let focusedIndex = -1;
+			let debounce;
+			let contextMenuRow = null;
+
+			searchEl.addEventListener("input", () => {
+				clearTimeout(debounce);
+				const q = searchEl.value;
+				debounce = setTimeout(async () => {
+					if (!q) {
+						resultsEl.innerHTML = "";
+						focusedIndex = -1;
+						return;
+					}
+					const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+					const rows = await res.json();
+					renderResults(rows);
+					focusedIndex = -1;
+				}, 150);
+			});
+
+			function renderResults(rows) {
+				resultsEl.innerHTML = "";
+				for (const row of rows) {
+					const div = document.createElement("div");
+					div.className = "result";
+					if (row.type === "book") {
+						div.textContent = row.name;
+						div.dataset.type = "book";
+						div.onclick = () => {
+							searchEl.value = row.name + " ";
+							searchEl.focus();
+						};
+					} else {
+						const ref = `${row.book} ${row.chapter}:${row.verse}`;
+						if (ref === currentRef) div.classList.add("active");
+						div.innerHTML = `<span class="ref">${ref}</span>${row.text}`;
+						div.dataset.type = "verse";
+						div.onclick = () => sendVerse(row);
+						div._row = row;
+						div.addEventListener("contextmenu", (e) => {
+							e.preventDefault();
+							contextMenuRow = row;
+							contextMenu.style.display = "block";
+							contextMenu.style.left = e.pageX + "px";
+							contextMenu.style.top = e.pageY + "px";
+						});
+					}
+					resultsEl.appendChild(div);
+				}
+			}
+
+			document.addEventListener("click", () => {
+				contextMenu.style.display = "none";
+			});
+
+			document.getElementById("copyItem").addEventListener("click", () => {
+				if (!contextMenuRow) return;
+				const ref = `${contextMenuRow.book} ${contextMenuRow.chapter}:${contextMenuRow.verse}`;
+				navigator.clipboard
+					.writeText(`${ref} — ${contextMenuRow.text}`)
+					.then(() => {
+						toast.classList.add("show");
+						setTimeout(() => toast.classList.remove("show"), 1500);
+					});
+				contextMenu.style.display = "none";
+			});
+
+			function sendVerse(row) {
+				currentRef = `${row.book} ${row.chapter}:${row.verse}`;
+				currentBookEl.textContent = currentRef;
+				ws.send(
+					JSON.stringify({
+						channel: "scripture",
+						book: row.book,
+						chapter: row.chapter,
+						verse: row.verse,
+						text: row.text,
+					}),
+				);
+
+				const items = resultsEl.querySelectorAll(".result");
+				items.forEach((el) => el.classList.remove("active"));
+				const clicked = [...items].find((el) =>
+					el.textContent.startsWith(currentRef),
+				);
+				if (clicked) clicked.classList.add("active");
+			}
+
+			document.getElementById("clearBtn").onclick = () => {
+				currentRef = null;
+				currentBookEl.textContent = "—";
+				ws.send(JSON.stringify({ channel: "scripture", type: "clear" }));
+				resultsEl
+					.querySelectorAll(".result")
+					.forEach((el) => el.classList.remove("active"));
+			};
+
+			function setFocus(index) {
+				const items = resultsEl.querySelectorAll(".result");
+				if (!items.length) return;
+				items.forEach((el) => el.classList.remove("focused"));
+				focusedIndex = Math.max(0, Math.min(index, items.length - 1));
+				const el = items[focusedIndex];
+				el.classList.add("focused");
+				el.scrollIntoView({ block: "nearest" });
+			}
+
+			searchEl.addEventListener("keydown", (e) => {
+				const items = resultsEl.querySelectorAll(".result");
+				if (e.key === "ArrowDown") {
+					e.preventDefault();
+					setFocus(focusedIndex + 1);
+				} else if (e.key === "ArrowUp") {
+					e.preventDefault();
+					setFocus(focusedIndex - 1);
+				} else if (e.key === "Enter") {
+					e.preventDefault();
+
+					const m = searchEl.value.trim().match(/^(.*?)\s+(\d+):(\d+)$/);
+					if (m) {
+						const wantedRef = `${m[1].trim()} ${m[2]}:${m[3]}`;
+						const matchIndex = [...items].findIndex(
+							(el) =>
+								el._row &&
+								`${el._row.book} ${el._row.chapter}:${el._row.verse}` ===
+									wantedRef,
+						);
+						if (matchIndex !== -1) {
+							focusedIndex = matchIndex;
+							items[matchIndex].click();
+							items[matchIndex].scrollIntoView({
+								block: "start",
+								behavior: "smooth",
+							});
+							return;
+						}
+					}
+
+					const target = focusedIndex >= 0 ? items[focusedIndex] : items[0];
+					if (target) target.click();
+				}
+			});
+
+			async function loadDefault() {
+				const res = await fetch(`/api/verse?book=Genesis&chapter=1&verse=1`);
+				const row = await res.json();
+				if (row && row.text) sendVerse(row);
+			}
+			loadDefault();
+		</script>
+	</body>
+</html>

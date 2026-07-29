@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			html,
+			body {
+				width: 100%;
+				height: 100%;
+				background: transparent;
+				overflow: hidden;
+			}
+
+			/* Background mode: full-screen, same look as scripture output */
+			body.bg-mode {
+				background: url("/image.png") center/cover no-repeat;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+			body.bg-mode #wrap {
+				width: 85%;
+				text-align: center;
+			}
+
+			/* Lower mode: transparent, fixed to bottom */
+			body.lower-mode #wrap {
+				position: fixed;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				padding: 3vh 4vw;
+				text-align: center;
+			}
+
+			#wrap {
+				opacity: 0;
+				transform: translateY(15px);
+				transition:
+					opacity 0.5s ease,
+					transform 0.5s ease;
+			}
+			#wrap.visible {
+				opacity: 1;
+				transform: translateY(0);
+			}
+
+			#lyrics {
+				font-family: "Book Antiqua", "Palatino Linotype", serif;
+				font-weight: bold;
+				color: white;
+				line-height: 1.4;
+				white-space: pre-line;
+				text-shadow:
+					0 3px 16px rgba(0, 0, 0, 0.9),
+					0 0 6px rgba(0, 0, 0, 0.7),
+					0 0 2px rgba(0, 0, 0, 0.8);
+			}
+			body.bg-mode #lyrics {
+				font-size: clamp(28px, 4.5vw, 72px);
+			}
+			body.lower-mode #lyrics {
+				font-size: clamp(24px, 4vw, 64px);
+			}
+		</style>
+	</head>
+	<body class="lower-mode">
+		<div id="wrap">
+			<div id="lyrics"></div>
+		</div>
+
+		<script>
+			const body = document.body;
+			const wrap = document.getElementById("wrap");
+			const lyricsEl = document.getElementById("lyrics");
+
+			function connect() {
+				const ws = new WebSocket(`ws://${location.host}/ws`);
+				ws.onmessage = (e) => {
+					const data = JSON.parse(e.data);
+					if (data.channel !== "song") return;
+
+					if (data.type === "clear") {
+						wrap.classList.remove("visible");
+						return;
+					}
+
+					body.className =
+						data.mode === "background" ? "bg-mode" : "lower-mode";
+					wrap.classList.remove("visible");
+					setTimeout(() => {
+						lyricsEl.textContent = data.text;
+						wrap.classList.add("visible");
+					}, 200);
+				};
+				ws.onclose = () => setTimeout(connect, 1000);
+			}
+			connect();
+		</script>
+	</body>
+</html>

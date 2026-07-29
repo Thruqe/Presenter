@@ -1,0 +1,458 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Song Control</title>
+		<style>
+			:root {
+				--bg-color: #f7f6f3;
+				--text-color: #2b2b2b;
+				--heading-color: #6b6558;
+				--panel-bg: #ffffff;
+				--panel-border: #e4e1d9;
+				--item-border: #edeae2;
+				--item-hover: #faf8f3;
+				--item-selected-bg: #fbf2dd;
+				--item-selected-border: #c99a3f;
+				--tag-color: #888888;
+				--btn-bg: #e4e1d9;
+				--btn-hover: #d8d4c9;
+				--btn-text: #2b2b2b;
+				--new-btn-bg: #2b4a5a;
+				--new-btn-hover: #2f5a6b;
+				--new-btn-text: #ffffff;
+				--input-bg: #ffffff;
+				--input-border: #d8d5cf;
+				--mode-label-border: #e4e1d9;
+				--mode-checked-text: #a3781f;
+				--mode-checked-border: #c99a3f;
+				--mode-checked-bg: #fdf7ea;
+				--add-sec-bg: #eef2fb;
+				--add-sec-hover: #dde6f7;
+				--add-sec-text: #3a5a9a;
+				--save-btn-bg: #2b5a2b;
+				--save-btn-hover: #2f6b2f;
+				--save-btn-text: #ffffff;
+				--live-label-color: #a3781f;
+				--live-lines-color: #444444;
+				--clear-bg: #f1d9d9;
+				--clear-hover: #e8c8c8;
+				--clear-text: #7a2b2b;
+			}
+
+			@media (prefers-color-scheme: dark) {
+				:root {
+					--bg-color: #121417;
+					--text-color: #e2e8f0;
+					--heading-color: #94a3b8;
+					--panel-bg: #1a1d24;
+					--panel-border: #2d333f;
+					--item-border: #262c38;
+					--item-hover: #222731;
+					--item-selected-bg: #2d2618;
+					--item-selected-border: #d4a359;
+					--tag-color: #94a3b8;
+					--btn-bg: #2a303c;
+					--btn-hover: #353d4d;
+					--btn-text: #e2e8f0;
+					--new-btn-bg: #2b5a9e;
+					--new-btn-hover: #366ac0;
+					--new-btn-text: #ffffff;
+					--input-bg: #1a1d24;
+					--input-border: #2d333f;
+					--mode-label-border: #2d333f;
+					--mode-checked-text: #e5b367;
+					--mode-checked-border: #d4a359;
+					--mode-checked-bg: #2d2618;
+					--add-sec-bg: #1c273c;
+					--add-sec-hover: #263654;
+					--add-sec-text: #7ca2f4;
+					--save-btn-bg: #216e39;
+					--save-btn-hover: #288545;
+					--save-btn-text: #ffffff;
+					--live-label-color: #e5b367;
+					--live-lines-color: #cbd5e1;
+					--clear-bg: #401e22;
+					--clear-hover: #54272c;
+					--clear-text: #f87171;
+				}
+			}
+
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+			body {
+				font-family: "Segoe UI", "Inter", system-ui, sans-serif;
+				background: var(--bg-color);
+				color: var(--text-color);
+				padding: 28px;
+				display: flex;
+				gap: 24px;
+				transition: background 0.2s ease, color 0.2s ease;
+			}
+			#left {
+				width: 280px;
+				flex-shrink: 0;
+			}
+			#right {
+				flex: 1;
+			}
+
+			h2 {
+				font-size: 16px;
+				margin-bottom: 10px;
+				color: var(--heading-color);
+				font-weight: 600;
+			}
+
+			#songList {
+				background: var(--panel-bg);
+				border: 1px solid var(--panel-border);
+				border-radius: 10px;
+				overflow: hidden;
+				transition: background 0.2s ease, border-color 0.2s ease;
+			}
+			.song-item {
+				padding: 12px 14px;
+				border-bottom: 1px solid var(--item-border);
+				cursor: pointer;
+				transition: background 0.15s ease, border-color 0.15s ease;
+			}
+			.song-item:last-child {
+				border-bottom: none;
+			}
+			.song-item:hover {
+				background: var(--item-hover);
+			}
+			.song-item.selected {
+				background: var(--item-selected-bg);
+				border-left: 4px solid var(--item-selected-border);
+			}
+			.song-item .mode-tag {
+				font-size: 11px;
+				color: var(--tag-color);
+				display: block;
+				margin-top: 2px;
+			}
+
+			button {
+				padding: 10px 16px;
+				border: none;
+				border-radius: 8px;
+				background: var(--btn-bg);
+				color: var(--btn-text);
+				cursor: pointer;
+				font-size: 14px;
+				font-weight: 500;
+				transition: background 0.15s ease, color 0.15s ease;
+			}
+			button:hover {
+				background: var(--btn-hover);
+			}
+			#newSongBtn {
+				width: 100%;
+				margin-bottom: 12px;
+				background: var(--new-btn-bg);
+				color: var(--new-btn-text);
+			}
+			#newSongBtn:hover {
+				background: var(--new-btn-hover);
+			}
+
+			/* Song builder */
+			#builder {
+				background: var(--panel-bg);
+				border: 1px solid var(--panel-border);
+				border-radius: 10px;
+				padding: 20px;
+				display: none;
+				transition: background 0.2s ease, border-color 0.2s ease;
+			}
+			#builder.active {
+				display: block;
+			}
+			#builder input[type="text"] {
+				width: 100%;
+				font-size: 20px;
+				padding: 10px 12px;
+				border-radius: 8px;
+				border: 1px solid var(--input-border);
+				background: var(--input-bg);
+				color: var(--text-color);
+				margin-bottom: 12px;
+			}
+			.mode-choice {
+				display: flex;
+				gap: 10px;
+				margin-bottom: 16px;
+			}
+			.mode-choice label {
+				flex: 1;
+				padding: 12px;
+				border: 2px solid var(--mode-label-border);
+				border-radius: 8px;
+				cursor: pointer;
+				text-align: center;
+				font-size: 14px;
+				color: var(--text-color);
+				transition: background 0.15s ease, border-color 0.15s ease;
+			}
+			.mode-choice input {
+				display: none;
+			}
+			.mode-choice input:checked + span {
+				color: var(--mode-checked-text);
+				font-weight: 600;
+			}
+			.mode-choice label:has(input:checked) {
+				border-color: var(--mode-checked-border);
+				background: var(--mode-checked-bg);
+			}
+
+			.section-block {
+				border: 1px solid var(--panel-border);
+				border-radius: 8px;
+				padding: 14px;
+				margin-bottom: 12px;
+			}
+			.section-block input[type="text"] {
+				font-size: 15px;
+				font-weight: 600;
+				margin-bottom: 8px;
+			}
+			.section-block textarea {
+				width: 100%;
+				min-height: 90px;
+				font-size: 15px;
+				padding: 10px;
+				border-radius: 6px;
+				border: 1px solid var(--input-border);
+				background: var(--input-bg);
+				color: var(--text-color);
+				font-family: inherit;
+				resize: vertical;
+			}
+			#addSectionBtn {
+				background: var(--add-sec-bg);
+				color: var(--add-sec-text);
+			}
+			#addSectionBtn:hover {
+				background: var(--add-sec-hover);
+			}
+			#saveSongBtn {
+				background: var(--save-btn-bg);
+				color: var(--save-btn-text);
+				margin-top: 8px;
+			}
+			#saveSongBtn:hover {
+				background: var(--save-btn-hover);
+			}
+
+			/* Live song view */
+			#liveView {
+				background: var(--panel-bg);
+				border: 1px solid var(--panel-border);
+				border-radius: 10px;
+				padding: 20px;
+				transition: background 0.2s ease, border-color 0.2s ease;
+			}
+			.live-section {
+				padding: 12px 14px;
+				border-bottom: 1px solid var(--item-border);
+				cursor: pointer;
+				border-radius: 6px;
+				transition: background 0.15s ease;
+			}
+			.live-section:hover {
+				background: var(--item-hover);
+			}
+			.live-section.active {
+				background: var(--item-selected-bg);
+				border-left: 4px solid var(--item-selected-border);
+			}
+			.live-section .label {
+				font-weight: 600;
+				color: var(--live-label-color);
+				display: block;
+				margin-bottom: 6px;
+			}
+			.live-section .lines {
+				white-space: pre-line;
+				color: var(--live-lines-color);
+			}
+
+			#clearBtn {
+				background: var(--clear-bg);
+				color: var(--clear-text);
+				margin-top: 12px;
+			}
+			#clearBtn:hover {
+				background: var(--clear-hover);
+			}
+		</style>
+	</head>
+	<body>
+		<div id="left">
+			<h2>Songs</h2>
+			<button id="newSongBtn">+ New Song</button>
+			<div id="songList"></div>
+		</div>
+
+		<div id="right">
+			<div id="builder">
+				<h2>New Song</h2>
+				<input type="text" id="titleInput" placeholder="Song title" />
+				<div class="mode-choice">
+					<label
+						><input type="radio" name="mode" value="background" checked /><span
+							>With Background</span
+						></label
+					>
+					<label
+						><input type="radio" name="mode" value="lower" /><span
+							>Lower Transparent</span
+						></label
+					>
+				</div>
+				<div id="sectionsWrap"></div>
+				<button id="addSectionBtn">+ Add Section</button>
+				<br />
+				<button id="saveSongBtn">Save Song</button>
+			</div>
+
+			<div id="liveView" style="display: none">
+				<h2 id="liveTitleLabel"></h2>
+				<div id="liveSections"></div>
+				<button id="clearBtn">Clear Output</button>
+			</div>
+		</div>
+
+		<script>
+			const songListEl = document.getElementById("songList");
+			const builder = document.getElementById("builder");
+			const liveView = document.getElementById("liveView");
+			const sectionsWrap = document.getElementById("sectionsWrap");
+			const ws = new WebSocket(`ws://${location.host}/ws`);
+
+			let selectedSongId = null;
+			let activeSectionIndex = -1;
+
+			async function loadSongs() {
+				const res = await fetch("/api/songs");
+				const songs = await res.json();
+				songListEl.innerHTML = "";
+				songs.forEach((song) => {
+					const div = document.createElement("div");
+					div.className = "song-item";
+					if (song.id === selectedSongId) div.classList.add("selected");
+					div.innerHTML = `${song.title}<span class="mode-tag">${song.display_mode === "background" ? "With Background" : "Lower Transparent"}</span>`;
+					div.onclick = () => openSong(song.id);
+					songListEl.appendChild(div);
+				});
+			}
+
+			document.getElementById("newSongBtn").onclick = () => {
+				selectedSongId = null;
+				builder.classList.add("active");
+				liveView.style.display = "none";
+				document.getElementById("titleInput").value = "";
+				sectionsWrap.innerHTML = "";
+				addSectionBlock();
+			};
+
+			function addSectionBlock() {
+				const div = document.createElement("div");
+				div.className = "section-block";
+				div.innerHTML = `
+      <input type="text" class="sec-label" placeholder="Section name (e.g. Chorus, Verse 1)">
+      <textarea class="sec-lines" placeholder="Type lyric lines for this section, one per line"></textarea>
+    `;
+				sectionsWrap.appendChild(div);
+			}
+
+			document.getElementById("addSectionBtn").onclick = addSectionBlock;
+
+			document.getElementById("saveSongBtn").onclick = async () => {
+				const title = document.getElementById("titleInput").value.trim();
+				if (!title) return alert("Enter a song title");
+				const mode = document.querySelector("input[name=mode]:checked").value;
+
+				const blocks = [...sectionsWrap.querySelectorAll(".section-block")];
+				const sections = blocks
+					.map((b) => {
+						const label =
+							b.querySelector(".sec-label").value.trim() || "Section";
+						const lines = b
+							.querySelector(".sec-lines")
+							.value.split("\n")
+							.map((l) => l.trim())
+							.filter(Boolean);
+						return { label, lines };
+					})
+					.filter((s) => s.lines.length > 0);
+
+				if (!sections.length)
+					return alert("Add at least one section with lyrics");
+
+				await fetch("/api/songs", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ title, display_mode: mode, sections }),
+				});
+
+				builder.classList.remove("active");
+				loadSongs();
+			};
+
+			async function openSong(id) {
+				selectedSongId = id;
+				activeSectionIndex = -1;
+				builder.classList.remove("active");
+				liveView.style.display = "block";
+
+				const res = await fetch(`/api/songs/${id}`);
+				const song = await res.json();
+
+				document.getElementById("liveTitleLabel").textContent = song.title;
+				const liveSections = document.getElementById("liveSections");
+				liveSections.innerHTML = "";
+
+				song.sections.forEach((sec, i) => {
+					const div = document.createElement("div");
+					div.className = "live-section";
+					const linesText = sec.lines.map((l) => l.text).join("\n");
+					div.innerHTML = `<span class="label">${sec.label}</span><span class="lines">${linesText}</span>`;
+					div.onclick = () => {
+						activeSectionIndex = i;
+						[...liveSections.children].forEach((el) =>
+							el.classList.remove("active"),
+						);
+						div.classList.add("active");
+						ws.send(
+							JSON.stringify({
+								channel: "song",
+								mode: song.display_mode,
+								text: linesText,
+							}),
+						);
+					};
+					liveSections.appendChild(div);
+				});
+
+				loadSongs();
+			}
+
+			document.getElementById("clearBtn").onclick = () => {
+				ws.send(JSON.stringify({ channel: "song", type: "clear" }));
+				document
+					.querySelectorAll(".live-section")
+					.forEach((el) => el.classList.remove("active"));
+			};
+
+			loadSongs();
+		</script>
+	</body>
+</html>
