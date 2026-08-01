@@ -1,4 +1,5 @@
 import type { ServerWebSocket } from "bun";
+import { networkInterfaces } from "os";
 import { logServerStart, logRequest } from "./logger";
 import {
     parseRef,
@@ -23,6 +24,25 @@ import {
 import type { CreateSongInput, BookSearchResult } from "./types";
 
 const PREFERRED_PORT = 58316;
+
+/**
+ * Determine the machine's LAN-facing IPv4 address so other devices on the
+ * same network can reach this server.
+ *
+ * @returns The first non-internal IPv4 address found, or null if none exists
+ *          (e.g. no network connection).
+ */
+function getLocalIp(): string | null {
+    const nets = networkInterfaces();
+    for (const name of Object.keys(nets)) {
+        for (const net of nets[name] ?? []) {
+            if (net.family === "IPv4" && !net.internal) {
+                return net.address;
+            }
+        }
+    }
+    return null;
+}
 
 /**
  * Main application HTTP web server request router.
@@ -187,4 +207,12 @@ const server = Bun.serve({
     },
 });
 
-logServerStart(server.port ?? PREFERRED_PORT);
+const activePort = server.port ?? PREFERRED_PORT;
+logServerStart(activePort);
+
+const lanIp = getLocalIp();
+if (lanIp) {
+    console.log(`On your network: http://${lanIp}:${activePort}`);
+} else {
+    console.log("No LAN network interface detected — server is only reachable via localhost");
+}
