@@ -1,3 +1,5 @@
+import QRCode from "qrcode";
+
 /**
  * Color utilities for terminal text output using ANSI escape sequences.
  */
@@ -23,11 +25,13 @@ function colorize(text: string, color: string): string {
 }
 
 /**
- * Log server startup routing endpoints with ANSI colored terminal text.
+ * Log server startup routing endpoints with ANSI colored terminal text
+ * and a terminal QR code for network access.
  *
  * @param port Network port number the server is listening on
+ * @param lanIp Local area network IPv4 address or null if not available
  */
-export function logServerStart(port: number): void {
+export async function logServerStart(port: number, lanIp: string | null): Promise<void> {
     const baseUrl = `http://localhost:${port}`;
     
     console.log(colorize("\n--- Presenter Server Active ---", `${BOLD}${CYAN}`));
@@ -36,6 +40,20 @@ export function logServerStart(port: number): void {
     console.log(`${colorize("Output:      ", DIM)} ${colorize(`${baseUrl}/output`, YELLOW)}`);
     console.log(`${colorize("Song Control:", DIM)} ${colorize(`${baseUrl}/song-control`, MAGENTA)}`);
     console.log(`${colorize("Song Output: ", DIM)} ${colorize(`${baseUrl}/song`, MAGENTA)}`);
+    
+    if (lanIp) {
+        const lanUrl = `http://${lanIp}:${port}`;
+        console.log(`${colorize("On your network:", BOLD)} ${colorize(lanUrl, GREEN)}`);
+        try {
+            const qrCode = await QRCode.toString(lanUrl, { type: "terminal", small: true });
+            console.log("\n" + qrCode);
+        } catch (err) {
+            console.error("Failed to generate QR code:", err);
+        }
+    } else {
+        console.log(colorize("No LAN network interface detected — server is only reachable via localhost", DIM));
+    }
+
     console.log(colorize("-------------------------------\n", `${BOLD}${CYAN}`));
 }
 

@@ -208,11 +208,5 @@ const server = Bun.serve({
 });
 
 const activePort = server.port ?? PREFERRED_PORT;
-logServerStart(activePort);
-
 const lanIp = getLocalIp();
-if (lanIp) {
-    console.log(`On your network: http://${lanIp}:${activePort}`);
-} else {
-    console.log("No LAN network interface detected — server is only reachable via localhost");
-}
+await logServerStart(activePort, lanIp);
