@@ -23,7 +23,7 @@ import {
 } from "./ws";
 import type { CreateSongInput, BookSearchResult } from "./types";
 
-const PREFERRED_PORT = 58316;
+const PREFERRED_PORT = Number(process.env.PORT) || 8642;
 
 /**
  * Determine the machine's LAN-facing IPv4 address so other devices on the
