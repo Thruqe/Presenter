@@ -300,12 +300,135 @@
 			const currentBookEl = document.getElementById("current-book-name");
 			const contextMenu = document.getElementById("contextMenu");
 			const toast = document.getElementById("toast");
-			const ws = new WebSocket(`ws://${location.host}/ws`);
+
+			let ws = null;
+			let reconnectTimer = null;
+			const messageQueue = [];
 
 			let currentRef = null;
 			let focusedIndex = -1;
 			let debounce;
 			let contextMenuRow = null;
+
+			function getWsUrl() {
+				const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+				return `${protocol}//${location.host}/ws`;
+			}
+
+			function connectWs() {
+				if (
+					ws &&
+					(ws.readyState === WebSocket.OPEN ||
+						ws.readyState === WebSocket.CONNECTING)
+				) {
+					return;
+				}
+				clearTimeout(reconnectTimer);
+
+				try {
+					ws = new WebSocket(getWsUrl());
+				} catch (_) {
+					scheduleReconnect();
+					return;
+				}
+
+				ws.onopen = () => {
+					clearTimeout(reconnectTimer);
+					while (messageQueue.length > 0 && ws.readyState === WebSocket.OPEN) {
+						const msg = messageQueue.shift();
+						ws.send(msg);
+					}
+				};
+
+				ws.onmessage = (e) => {
+					try {
+						const data = JSON.parse(e.data);
+						if (data.channel !== "scripture") return;
+
+						if (data.type === "clear") {
+							currentRef = null;
+							currentBookEl.textContent = "—";
+							resultsEl
+								.querySelectorAll(".result")
+								.forEach((el) => el.classList.remove("active"));
+							return;
+						}
+
+						if (data.book && data.chapter && data.verse) {
+							currentRef = `${data.book} ${data.chapter}:${data.verse}`;
+							currentBookEl.textContent = currentRef;
+							const items = resultsEl.querySelectorAll(".result");
+							items.forEach((el) => el.classList.remove("active"));
+							const clicked = [...items].find((el) =>
+								el.textContent.startsWith(currentRef),
+							);
+							if (clicked) clicked.classList.add("active");
+						}
+					} catch (_) {}
+				};
+
+				ws.onclose = () => {
+					scheduleReconnect();
+				};
+
+				ws.onerror = () => {
+					try {
+						ws.close();
+					} catch (_) {}
+				};
+			}
+
+			function scheduleReconnect() {
+				clearTimeout(reconnectTimer);
+				reconnectTimer = setTimeout(() => {
+					connectWs();
+				}, 1000);
+			}
+
+			function sendWs(data) {
+				const payload = typeof data === "string" ? data : JSON.stringify(data);
+				if (ws && ws.readyState === WebSocket.OPEN) {
+					ws.send(payload);
+				} else {
+					messageQueue.push(payload);
+					connectWs();
+				}
+			}
+
+			// Reconnect immediately when page becomes visible or focused
+			document.addEventListener("visibilitychange", () => {
+				if (document.visibilityState === "visible") {
+					if (
+						!ws ||
+						ws.readyState === WebSocket.CLOSED ||
+						ws.readyState === WebSocket.CLOSING
+					) {
+						connectWs();
+					}
+				}
+			});
+
+			window.addEventListener("focus", () => {
+				if (
+					!ws ||
+					ws.readyState === WebSocket.CLOSED ||
+					ws.readyState === WebSocket.CLOSING
+				) {
+					connectWs();
+				}
+			});
+
+			window.addEventListener("pageshow", () => {
+				if (
+					!ws ||
+					ws.readyState === WebSocket.CLOSED ||
+					ws.readyState === WebSocket.CLOSING
+				) {
+					connectWs();
+				}
+			});
+
+			connectWs();
 
 			searchEl.addEventListener("input", () => {
 				clearTimeout(debounce);
@@ -316,10 +439,12 @@
 						focusedIndex = -1;
 						return;
 					}
-					const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-					const rows = await res.json();
-					renderResults(rows);
-					focusedIndex = -1;
+					try {
+						const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+						const rows = await res.json();
+						renderResults(rows);
+						focusedIndex = -1;
+					} catch (_) {}
 				}, 150);
 			});
 
@@ -372,19 +497,15 @@
 
 			function sendVerse(row) {
 				const nextRef = `${row.book} ${row.chapter}:${row.verse}`;
-				if (currentRef === nextRef) return;
-
 				currentRef = nextRef;
 				currentBookEl.textContent = currentRef;
-				ws.send(
-					JSON.stringify({
-						channel: "scripture",
-						book: row.book,
-						chapter: row.chapter,
-						verse: row.verse,
-						text: row.text,
-					}),
-				);
+				sendWs({
+					channel: "scripture",
+					book: row.book,
+					chapter: row.chapter,
+					verse: row.verse,
+					text: row.text,
+				});
 
 				const items = resultsEl.querySelectorAll(".result");
 				items.forEach((el) => el.classList.remove("active"));
@@ -397,7 +518,7 @@
 			document.getElementById("clearBtn").onclick = () => {
 				currentRef = null;
 				currentBookEl.textContent = "—";
-				ws.send(JSON.stringify({ channel: "scripture", type: "clear" }));
+				sendWs({ channel: "scripture", type: "clear" });
 				resultsEl
 					.querySelectorAll(".result")
 					.forEach((el) => el.classList.remove("active"));
@@ -450,9 +571,11 @@
 			});
 
 			async function loadDefault() {
-				const res = await fetch(`/api/verse?book=Genesis&chapter=1&verse=1`);
-				const row = await res.json();
-				if (row && row.text) sendVerse(row);
+				try {
+					const res = await fetch(`/api/verse?book=Genesis&chapter=1&verse=1`);
+					const row = await res.json();
+					if (row && row.text && !currentRef) sendVerse(row);
+				} catch (_) {}
 			}
 			loadDefault();
 		</script>

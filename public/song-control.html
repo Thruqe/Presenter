@@ -335,23 +335,153 @@
 			const builder = document.getElementById("builder");
 			const liveView = document.getElementById("liveView");
 			const sectionsWrap = document.getElementById("sectionsWrap");
-			const ws = new WebSocket(`ws://${location.host}/ws`);
+
+			let ws = null;
+			let reconnectTimer = null;
+			const messageQueue = [];
 
 			let selectedSongId = null;
 			let activeSectionIndex = -1;
 
+			function getWsUrl() {
+				const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+				return `${protocol}//${location.host}/ws`;
+			}
+
+			function connectWs() {
+				if (
+					ws &&
+					(ws.readyState === WebSocket.OPEN ||
+						ws.readyState === WebSocket.CONNECTING)
+				) {
+					return;
+				}
+				clearTimeout(reconnectTimer);
+
+				try {
+					ws = new WebSocket(getWsUrl());
+				} catch (_) {
+					scheduleReconnect();
+					return;
+				}
+
+				ws.onopen = () => {
+					clearTimeout(reconnectTimer);
+					while (messageQueue.length > 0 && ws.readyState === WebSocket.OPEN) {
+						const msg = messageQueue.shift();
+						ws.send(msg);
+					}
+				};
+
+				ws.onmessage = (e) => {
+					try {
+						const data = JSON.parse(e.data);
+						if (data.channel !== "song") return;
+
+						if (data.type === "clear") {
+							activeSectionIndex = -1;
+							document
+								.querySelectorAll(".live-section")
+								.forEach((el) => el.classList.remove("active"));
+							return;
+						}
+
+						if (data.text) {
+							const liveSections = document.getElementById("liveSections");
+							if (liveSections) {
+								const sections = [...liveSections.children];
+								sections.forEach((el, i) => {
+									const linesEl = el.querySelector(".lines");
+									if (linesEl && linesEl.textContent === data.text) {
+										activeSectionIndex = i;
+										el.classList.add("active");
+									} else {
+										el.classList.remove("active");
+									}
+								});
+							}
+						}
+					} catch (_) {}
+				};
+
+				ws.onclose = () => {
+					scheduleReconnect();
+				};
+
+				ws.onerror = () => {
+					try {
+						ws.close();
+					} catch (_) {}
+				};
+			}
+
+			function scheduleReconnect() {
+				clearTimeout(reconnectTimer);
+				reconnectTimer = setTimeout(() => {
+					connectWs();
+				}, 1000);
+			}
+
+			function sendWs(data) {
+				const payload = typeof data === "string" ? data : JSON.stringify(data);
+				if (ws && ws.readyState === WebSocket.OPEN) {
+					ws.send(payload);
+				} else {
+					messageQueue.push(payload);
+					connectWs();
+				}
+			}
+
+			// Reconnect immediately when page becomes visible or focused
+			document.addEventListener("visibilitychange", () => {
+				if (document.visibilityState === "visible") {
+					if (
+						!ws ||
+						ws.readyState === WebSocket.CLOSED ||
+						ws.readyState === WebSocket.CLOSING
+					) {
+						connectWs();
+					}
+					loadSongs();
+				}
+			});
+
+			window.addEventListener("focus", () => {
+				if (
+					!ws ||
+					ws.readyState === WebSocket.CLOSED ||
+					ws.readyState === WebSocket.CLOSING
+				) {
+					connectWs();
+				}
+			});
+
+			window.addEventListener("pageshow", () => {
+				if (
+					!ws ||
+					ws.readyState === WebSocket.CLOSED ||
+					ws.readyState === WebSocket.CLOSING
+				) {
+					connectWs();
+				}
+			});
+
+			connectWs();
+
 			async function loadSongs() {
-				const res = await fetch("/api/songs");
-				const songs = await res.json();
-				songListEl.innerHTML = "";
-				songs.forEach((song) => {
-					const div = document.createElement("div");
-					div.className = "song-item";
-					if (song.id === selectedSongId) div.classList.add("selected");
-					div.innerHTML = `${song.title}<span class="mode-tag">${song.display_mode === "background" ? "With Background" : "Lower Transparent"}</span>`;
-					div.onclick = () => openSong(song.id);
-					songListEl.appendChild(div);
-				});
+				try {
+					const res = await fetch("/api/songs");
+					const songs = await res.json();
+					songListEl.innerHTML = "";
+					songs.forEach((song) => {
+						const div = document.createElement("div");
+						div.className = "song-item";
+						if (song.id === selectedSongId) div.classList.add("selected");
+						div.innerHTML = `${song.title}<span class="mode-tag">${song.display_mode === "background" ? "With Background" : "Lower Transparent"}</span>`;
+						div.onclick = () => openSong(song.id);
+						songListEl.appendChild(div);
+					});
+				} catch (_) {}
 			}
 
 			document.getElementById("newSongBtn").onclick = () => {
@@ -431,13 +561,11 @@
 							el.classList.remove("active"),
 						);
 						div.classList.add("active");
-						ws.send(
-							JSON.stringify({
-								channel: "song",
-								mode: song.display_mode,
-								text: linesText,
-							}),
-						);
+						sendWs({
+							channel: "song",
+							mode: song.display_mode,
+							text: linesText,
+						});
 					};
 					liveSections.appendChild(div);
 				});
@@ -446,7 +574,8 @@
 			}
 
 			document.getElementById("clearBtn").onclick = () => {
-				ws.send(JSON.stringify({ channel: "song", type: "clear" }));
+				activeSectionIndex = -1;
+				sendWs({ channel: "song", type: "clear" });
 				document
 					.querySelectorAll(".live-section")
 					.forEach((el) => el.classList.remove("active"));

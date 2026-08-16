@@ -69,27 +69,99 @@
 			const verseEl = document.getElementById("verse");
 			const refEl = document.getElementById("ref");
 
+			let ws = null;
+			let reconnectTimer = null;
+
+			function getWsUrl() {
+				const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+				return `${protocol}//${location.host}/ws`;
+			}
+
 			function connect() {
-				const ws = new WebSocket(`ws://${location.host}/ws`);
+				if (
+					ws &&
+					(ws.readyState === WebSocket.OPEN ||
+						ws.readyState === WebSocket.CONNECTING)
+				) {
+					return;
+				}
+				clearTimeout(reconnectTimer);
+
+				try {
+					ws = new WebSocket(getWsUrl());
+				} catch (_) {
+					scheduleReconnect();
+					return;
+				}
+
 				ws.onmessage = (e) => {
-					const data = JSON.parse(e.data);
-					if (data.channel !== "scripture") return;
-					if (data.type === "clear") {
+					try {
+						const data = JSON.parse(e.data);
+						if (data.channel !== "scripture") return;
+						if (data.type === "clear") {
+							wrap.classList.remove("visible");
+							wrap.classList.add("hidden");
+							return;
+						}
 						wrap.classList.remove("visible");
 						wrap.classList.add("hidden");
-						return;
-					}
-					wrap.classList.remove("visible");
-					wrap.classList.add("hidden");
-					setTimeout(() => {
-						verseEl.textContent = data.text;
-						refEl.textContent = `${data.book} ${data.chapter}:${data.verse}`;
-						wrap.classList.remove("hidden");
-						wrap.classList.add("visible");
-					}, 200);
+						setTimeout(() => {
+							verseEl.textContent = data.text;
+							refEl.textContent = `${data.book} ${data.chapter}:${data.verse}`;
+							wrap.classList.remove("hidden");
+							wrap.classList.add("visible");
+						}, 200);
+					} catch (_) {}
 				};
-				ws.onclose = () => setTimeout(connect, 1000);
+
+				ws.onclose = () => {
+					scheduleReconnect();
+				};
+
+				ws.onerror = () => {
+					try {
+						ws.close();
+					} catch (_) {}
+				};
 			}
+
+			function scheduleReconnect() {
+				clearTimeout(reconnectTimer);
+				reconnectTimer = setTimeout(connect, 1000);
+			}
+
+			document.addEventListener("visibilitychange", () => {
+				if (document.visibilityState === "visible") {
+					if (
+						!ws ||
+						ws.readyState === WebSocket.CLOSED ||
+						ws.readyState === WebSocket.CLOSING
+					) {
+						connect();
+					}
+				}
+			});
+
+			window.addEventListener("focus", () => {
+				if (
+					!ws ||
+					ws.readyState === WebSocket.CLOSED ||
+					ws.readyState === WebSocket.CLOSING
+				) {
+					connect();
+				}
+			});
+
+			window.addEventListener("pageshow", () => {
+				if (
+					!ws ||
+					ws.readyState === WebSocket.CLOSED ||
+					ws.readyState === WebSocket.CLOSING
+				) {
+					connect();
+				}
+			});
+
 			connect();
 		</script>
 	</body>
