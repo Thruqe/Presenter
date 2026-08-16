@@ -2,8 +2,6 @@
 <html>
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Scripture Output</title>
 		<style>
 			* {
 				margin: 0;
@@ -15,30 +13,21 @@
 				width: 100%;
 				height: 100%;
 				background: transparent;
-				overflow: hidden;
 			}
 			body {
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				padding: 3vh 4vw;
+				overflow: hidden;
 			}
 			#wrap {
-				width: 100%;
-				max-width: 90vw;
-				max-height: 90vh;
+				width: 85%;
 				text-align: center;
 				opacity: 0;
 				transform: translateY(10px);
 				transition:
-					opacity 0.4s ease,
-					transform 0.4s ease;
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				justify-content: center;
-				word-break: normal;
-				overflow-wrap: break-word;
+					opacity 0.5s ease,
+					transform 0.5s ease;
 			}
 			#wrap.visible {
 				opacity: 1;
@@ -49,25 +38,23 @@
 				pointer-events: none;
 			}
 			#verse {
-				font-family: "Book Antiqua", "Palatino Linotype", "Georgia", "Times New Roman", serif;
-				font-size: clamp(20px, 4vw, 72px);
+				font-family: "Book Antiqua", "Palatino Linotype", serif;
+				font-size: clamp(28px, 4.5vw, 72px);
 				font-weight: bold;
 				color: white;
-				line-height: 1.35;
+				line-height: 1.4;
 				text-shadow:
 					0 3px 16px rgba(0, 0, 0, 0.9),
 					0 0 6px rgba(0, 0, 0, 0.7),
 					0 0 2px rgba(0, 0, 0, 0.8);
-				width: 100%;
 			}
 			#ref {
-				margin-top: 1.2vw;
-				font-family: "Book Antiqua", "Palatino Linotype", "Georgia", "Times New Roman", serif;
-				font-size: clamp(16px, 3vw, 52px);
+				margin-top: 1.5vw;
+				font-family: "Book Antiqua", "Palatino Linotype", serif;
+				font-size: clamp(28px, 4.5vw, 72px);
 				font-weight: bold;
 				color: #e8d9a0;
 				text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
-				width: 100%;
 			}
 		</style>
 	</head>
@@ -89,61 +76,6 @@
 				const protocol = location.protocol === "https:" ? "wss:" : "ws:";
 				return `${protocol}//${location.host}/ws`;
 			}
-
-			function adjustFontSize() {
-				if (!verseEl.textContent) return;
-
-				const maxW = window.innerWidth * 0.88;
-				const maxH = window.innerHeight * 0.84;
-
-				const minFont = 12;
-				const maxFont = Math.max(
-					minFont,
-					Math.min(
-						Math.floor(window.innerWidth * 0.065),
-						Math.floor(window.innerHeight * 0.11),
-						150
-					)
-				);
-
-				let low = minFont;
-				let high = maxFont;
-				let bestSize = minFont;
-
-				while (low <= high) {
-					const mid = Math.floor((low + high) / 2);
-					const refSize = Math.max(13, Math.round(mid * 0.72));
-					const refMargin = Math.max(6, Math.round(mid * 0.3));
-
-					verseEl.style.fontSize = mid + "px";
-					refEl.style.fontSize = refSize + "px";
-					refEl.style.marginTop = refMargin + "px";
-
-					const overflowsH = wrap.scrollHeight > maxH;
-					const overflowsW = wrap.scrollWidth > maxW;
-
-					if (!overflowsH && !overflowsW) {
-						bestSize = mid;
-						low = mid + 1;
-					} else {
-						high = mid - 1;
-					}
-				}
-
-				const finalRefSize = Math.max(13, Math.round(bestSize * 0.72));
-				const finalMargin = Math.max(6, Math.round(bestSize * 0.3));
-				verseEl.style.fontSize = bestSize + "px";
-				refEl.style.fontSize = finalRefSize + "px";
-				refEl.style.marginTop = finalMargin + "px";
-			}
-
-			let resizeRaf = null;
-			window.addEventListener("resize", () => {
-				if (resizeRaf) cancelAnimationFrame(resizeRaf);
-				resizeRaf = requestAnimationFrame(() => {
-					adjustFontSize();
-				});
-			});
 
 			function connect() {
 				if (
@@ -176,7 +108,6 @@
 						setTimeout(() => {
 							verseEl.textContent = data.text;
 							refEl.textContent = `${data.book} ${data.chapter}:${data.verse}`;
-							adjustFontSize();
 							wrap.classList.remove("hidden");
 							wrap.classList.add("visible");
 						}, 200);

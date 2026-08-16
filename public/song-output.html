@@ -2,8 +2,6 @@
 <html>
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Song Output</title>
 		<style>
 			* {
 				margin: 0;
@@ -24,45 +22,28 @@
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				padding: 3vh 4vw;
 			}
 			body.bg-mode #wrap {
-				width: 100%;
-				max-width: 90vw;
-				max-height: 90vh;
+				width: 85%;
 				text-align: center;
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				justify-content: center;
 			}
 
 			/* Lower mode: transparent, fixed to bottom */
-			body.lower-mode {
-				display: block;
-			}
 			body.lower-mode #wrap {
 				position: fixed;
 				left: 0;
 				right: 0;
 				bottom: 0;
-				padding: 2.5vh 4vw;
+				padding: 3vh 4vw;
 				text-align: center;
-				max-height: 38vh;
-				display: flex;
-				flex-direction: column;
-				align-items: center;
-				justify-content: flex-end;
 			}
 
 			#wrap {
 				opacity: 0;
-				transform: translateY(12px);
+				transform: translateY(15px);
 				transition:
-					opacity 0.4s ease,
-					transform 0.4s ease;
-				word-break: normal;
-				overflow-wrap: break-word;
+					opacity 0.5s ease,
+					transform 0.5s ease;
 			}
 			#wrap.visible {
 				opacity: 1;
@@ -70,22 +51,21 @@
 			}
 
 			#lyrics {
-				font-family: "Book Antiqua", "Palatino Linotype", "Georgia", "Times New Roman", serif;
+				font-family: "Book Antiqua", "Palatino Linotype", serif;
 				font-weight: bold;
 				color: white;
-				line-height: 1.35;
+				line-height: 1.4;
 				white-space: pre-line;
 				text-shadow:
 					0 3px 16px rgba(0, 0, 0, 0.9),
 					0 0 6px rgba(0, 0, 0, 0.7),
 					0 0 2px rgba(0, 0, 0, 0.8);
-				width: 100%;
 			}
 			body.bg-mode #lyrics {
-				font-size: clamp(20px, 4vw, 72px);
+				font-size: clamp(28px, 4.5vw, 72px);
 			}
 			body.lower-mode #lyrics {
-				font-size: clamp(18px, 3.5vw, 56px);
+				font-size: clamp(24px, 4vw, 64px);
 			}
 		</style>
 	</head>
@@ -106,62 +86,6 @@
 				const protocol = location.protocol === "https:" ? "wss:" : "ws:";
 				return `${protocol}//${location.host}/ws`;
 			}
-
-			function adjustFontSize() {
-				if (!lyricsEl.textContent) return;
-
-				const isBg = body.classList.contains("bg-mode");
-				const maxW = window.innerWidth * (isBg ? 0.88 : 0.92);
-				const maxH = window.innerHeight * (isBg ? 0.84 : 0.32);
-
-				const minFont = 12;
-				const maxFont = isBg
-					? Math.max(
-							minFont,
-							Math.min(
-								Math.floor(window.innerWidth * 0.065),
-								Math.floor(window.innerHeight * 0.11),
-								150
-							)
-						)
-					: Math.max(
-							minFont,
-							Math.min(
-								Math.floor(window.innerWidth * 0.045),
-								Math.floor(window.innerHeight * 0.075),
-								64
-							)
-						);
-
-				let low = minFont;
-				let high = maxFont;
-				let bestSize = minFont;
-
-				while (low <= high) {
-					const mid = Math.floor((low + high) / 2);
-					lyricsEl.style.fontSize = mid + "px";
-
-					const overflowsH = wrap.scrollHeight > maxH;
-					const overflowsW = wrap.scrollWidth > maxW;
-
-					if (!overflowsH && !overflowsW) {
-						bestSize = mid;
-						low = mid + 1;
-					} else {
-						high = mid - 1;
-					}
-				}
-
-				lyricsEl.style.fontSize = bestSize + "px";
-			}
-
-			let resizeRaf = null;
-			window.addEventListener("resize", () => {
-				if (resizeRaf) cancelAnimationFrame(resizeRaf);
-				resizeRaf = requestAnimationFrame(() => {
-					adjustFontSize();
-				});
-			});
 
 			function connect() {
 				if (
@@ -195,7 +119,6 @@
 						wrap.classList.remove("visible");
 						setTimeout(() => {
 							lyricsEl.textContent = data.text;
-							adjustFontSize();
 							wrap.classList.add("visible");
 						}, 200);
 					} catch (_) {}
