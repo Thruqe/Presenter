@@ -1,0 +1,12 @@
+services:
+  presenter:
+    build: .
+    container_name: presenter
+    restart: unless-stopped
+    ports:
+      - "8642:8642"
+    environment:
+      - PORT=8642
+      - NODE_ENV=production
+    volumes:
+      - ./db:/app/db
