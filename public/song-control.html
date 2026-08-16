@@ -24,6 +24,8 @@
 				--new-btn-text: #ffffff;
 				--input-bg: #ffffff;
 				--input-border: #d8d5cf;
+				--input-focus-border: #b8965a;
+				--input-focus-ring: rgba(184, 150, 90, 0.2);
 				--mode-label-border: #e4e1d9;
 				--mode-checked-text: #a3781f;
 				--mode-checked-border: #c99a3f;
@@ -39,6 +41,15 @@
 				--clear-bg: #f1d9d9;
 				--clear-hover: #e8c8c8;
 				--clear-text: #7a2b2b;
+				--edit-btn-bg: #eef2fb;
+				--edit-btn-hover: #dde6f7;
+				--edit-btn-text: #3a5a9a;
+				--delete-btn-bg: #fdf2f2;
+				--delete-btn-hover: #fee2e2;
+				--delete-btn-text: #b91c1c;
+				--delete-btn-border: #fca5a5;
+				--toast-bg: #2b2b2b;
+				--toast-text: #ffffff;
 			}
 
 			@media (prefers-color-scheme: dark) {
@@ -61,6 +72,8 @@
 					--new-btn-text: #ffffff;
 					--input-bg: #1a1d24;
 					--input-border: #2d333f;
+					--input-focus-border: #d4a359;
+					--input-focus-ring: rgba(212, 163, 89, 0.25);
 					--mode-label-border: #2d333f;
 					--mode-checked-text: #e5b367;
 					--mode-checked-border: #d4a359;
@@ -76,6 +89,15 @@
 					--clear-bg: #401e22;
 					--clear-hover: #54272c;
 					--clear-text: #f87171;
+					--edit-btn-bg: #1c273c;
+					--edit-btn-hover: #263654;
+					--edit-btn-text: #7ca2f4;
+					--delete-btn-bg: #3b181c;
+					--delete-btn-hover: #4c1d22;
+					--delete-btn-text: #f87171;
+					--delete-btn-border: #7f1d1d;
+					--toast-bg: #e2e8f0;
+					--toast-text: #121417;
 				}
 			}
 
@@ -99,6 +121,7 @@
 			}
 			#right {
 				flex: 1;
+				min-width: 0;
 			}
 
 			h2 {
@@ -112,7 +135,8 @@
 				background: var(--panel-bg);
 				border: 1px solid var(--panel-border);
 				border-radius: 10px;
-				overflow: hidden;
+				overflow-y: auto;
+				max-height: calc(100vh - 120px);
 				transition: background 0.2s ease, border-color 0.2s ease;
 			}
 			.song-item {
@@ -147,7 +171,7 @@
 				cursor: pointer;
 				font-size: 14px;
 				font-weight: 500;
-				transition: background 0.15s ease, color 0.15s ease;
+				transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 			}
 			button:hover {
 				background: var(--btn-hover);
@@ -174,15 +198,31 @@
 			#builder.active {
 				display: block;
 			}
+			.builder-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 14px;
+			}
+			.builder-header h2 {
+				margin-bottom: 0;
+			}
 			#builder input[type="text"] {
 				width: 100%;
-				font-size: 20px;
+				font-size: 18px;
 				padding: 10px 12px;
 				border-radius: 8px;
 				border: 1px solid var(--input-border);
 				background: var(--input-bg);
 				color: var(--text-color);
 				margin-bottom: 12px;
+			}
+			#builder input[type="text"]:focus,
+			.section-block input[type="text"]:focus,
+			.section-block textarea:focus {
+				outline: none;
+				border-color: var(--input-focus-border);
+				box-shadow: 0 0 0 3px var(--input-focus-ring);
 			}
 			.mode-choice {
 				display: flex;
@@ -217,11 +257,32 @@
 				border-radius: 8px;
 				padding: 14px;
 				margin-bottom: 12px;
+				background: var(--panel-bg);
 			}
-			.section-block input[type="text"] {
+			.section-block-header {
+				display: flex;
+				gap: 10px;
+				align-items: center;
+				margin-bottom: 8px;
+			}
+			.section-block-header input[type="text"] {
 				font-size: 15px;
 				font-weight: 600;
-				margin-bottom: 8px;
+				margin-bottom: 0 !important;
+				flex: 1;
+			}
+			.remove-sec-btn {
+				padding: 8px 12px;
+				background: var(--delete-btn-bg);
+				border: 1px solid var(--delete-btn-border);
+				color: var(--delete-btn-text);
+				border-radius: 6px;
+				cursor: pointer;
+				font-size: 13px;
+				font-weight: 600;
+			}
+			.remove-sec-btn:hover {
+				background: var(--delete-btn-hover);
 			}
 			.section-block textarea {
 				width: 100%;
@@ -242,10 +303,14 @@
 			#addSectionBtn:hover {
 				background: var(--add-sec-hover);
 			}
+			.builder-footer {
+				display: flex;
+				gap: 10px;
+				margin-top: 16px;
+			}
 			#saveSongBtn {
 				background: var(--save-btn-bg);
 				color: var(--save-btn-text);
-				margin-top: 8px;
 			}
 			#saveSongBtn:hover {
 				background: var(--save-btn-hover);
@@ -258,6 +323,46 @@
 				border-radius: 10px;
 				padding: 20px;
 				transition: background 0.2s ease, border-color 0.2s ease;
+			}
+			.live-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-start;
+				margin-bottom: 16px;
+				gap: 12px;
+			}
+			.live-header-info {
+				flex: 1;
+				min-width: 0;
+			}
+			.live-header-info h2 {
+				margin-bottom: 4px;
+				word-break: break-word;
+			}
+			.mode-badge {
+				font-size: 12px;
+				color: var(--tag-color);
+				font-weight: 500;
+			}
+			.live-actions {
+				display: flex;
+				gap: 8px;
+				flex-shrink: 0;
+			}
+			#editSongBtn {
+				background: var(--edit-btn-bg);
+				color: var(--edit-btn-text);
+			}
+			#editSongBtn:hover {
+				background: var(--edit-btn-hover);
+			}
+			#deleteSongBtn {
+				background: var(--delete-btn-bg);
+				border: 1px solid var(--delete-btn-border);
+				color: var(--delete-btn-text);
+			}
+			#deleteSongBtn:hover {
+				background: var(--delete-btn-hover);
 			}
 			.live-section {
 				padding: 12px 14px;
@@ -287,10 +392,33 @@
 			#clearBtn {
 				background: var(--clear-bg);
 				color: var(--clear-text);
-				margin-top: 12px;
+				margin-top: 16px;
 			}
 			#clearBtn:hover {
 				background: var(--clear-hover);
+			}
+
+			#toast {
+				position: fixed;
+				bottom: 24px;
+				left: 50%;
+				transform: translateX(-50%) translateY(20px);
+				background: var(--toast-bg);
+				color: var(--toast-text);
+				padding: 10px 18px;
+				border-radius: 8px;
+				font-size: 14px;
+				font-weight: 500;
+				opacity: 0;
+				pointer-events: none;
+				transition:
+					opacity 0.25s ease,
+					transform 0.25s ease;
+				z-index: 1000;
+			}
+			#toast.show {
+				opacity: 1;
+				transform: translateX(-50%) translateY(0);
 			}
 		</style>
 	</head>
@@ -303,45 +431,74 @@
 
 		<div id="right">
 			<div id="builder">
-				<h2>New Song</h2>
+				<div class="builder-header">
+					<h2 id="builderHeading">New Song</h2>
+					<button type="button" id="cancelBuilderBtn">Cancel</button>
+				</div>
 				<input type="text" id="titleInput" placeholder="Song title" />
 				<div class="mode-choice">
-					<label
-						><input type="radio" name="mode" value="background" checked /><span
-							>With Background</span
-						></label
-					>
-					<label
-						><input type="radio" name="mode" value="lower" /><span
-							>Lower Transparent</span
-						></label
-					>
+					<label>
+						<input type="radio" name="mode" value="background" checked />
+						<span>With Background</span>
+					</label>
+					<label>
+						<input type="radio" name="mode" value="lower" />
+						<span>Lower Transparent</span>
+					</label>
 				</div>
 				<div id="sectionsWrap"></div>
 				<button id="addSectionBtn">+ Add Section</button>
-				<br />
-				<button id="saveSongBtn">Save Song</button>
+				<div class="builder-footer">
+					<button id="saveSongBtn">Save Song</button>
+					<button type="button" id="cancelBuilderBtn2">Cancel</button>
+				</div>
 			</div>
 
 			<div id="liveView" style="display: none">
-				<h2 id="liveTitleLabel"></h2>
+				<div class="live-header">
+					<div class="live-header-info">
+						<h2 id="liveTitleLabel"></h2>
+						<span id="liveModeBadge" class="mode-badge"></span>
+					</div>
+					<div class="live-actions">
+						<button id="editSongBtn">Edit Song</button>
+						<button id="deleteSongBtn">Delete</button>
+					</div>
+				</div>
 				<div id="liveSections"></div>
 				<button id="clearBtn">Clear Output</button>
 			</div>
 		</div>
 
+		<div id="toast"></div>
+
 		<script>
 			const songListEl = document.getElementById("songList");
 			const builder = document.getElementById("builder");
+			const builderHeading = document.getElementById("builderHeading");
+			const titleInput = document.getElementById("titleInput");
+			const saveSongBtn = document.getElementById("saveSongBtn");
 			const liveView = document.getElementById("liveView");
+			const liveTitleLabel = document.getElementById("liveTitleLabel");
+			const liveModeBadge = document.getElementById("liveModeBadge");
+			const liveSections = document.getElementById("liveSections");
 			const sectionsWrap = document.getElementById("sectionsWrap");
+			const toast = document.getElementById("toast");
 
 			let ws = null;
 			let reconnectTimer = null;
 			const messageQueue = [];
 
 			let selectedSongId = null;
+			let currentSongData = null;
+			let editingSongId = null;
 			let activeSectionIndex = -1;
+
+			function showToast(message) {
+				toast.textContent = message;
+				toast.classList.add("show");
+				setTimeout(() => toast.classList.remove("show"), 2000);
+			}
 
 			function getWsUrl() {
 				const protocol = location.protocol === "https:" ? "wss:" : "ws:";
@@ -387,19 +544,16 @@
 						}
 
 						if (data.text) {
-							const liveSections = document.getElementById("liveSections");
-							if (liveSections) {
-								const sections = [...liveSections.children];
-								sections.forEach((el, i) => {
-									const linesEl = el.querySelector(".lines");
-									if (linesEl && linesEl.textContent === data.text) {
-										activeSectionIndex = i;
-										el.classList.add("active");
-									} else {
-										el.classList.remove("active");
-									}
-								});
-							}
+							const sections = [...liveSections.children];
+							sections.forEach((el, i) => {
+								const linesEl = el.querySelector(".lines");
+								if (linesEl && linesEl.textContent === data.text) {
+									activeSectionIndex = i;
+									el.classList.add("active");
+								} else {
+									el.classList.remove("active");
+								}
+							});
 						}
 					} catch (_) {}
 				};
@@ -476,36 +630,119 @@
 						const div = document.createElement("div");
 						div.className = "song-item";
 						if (song.id === selectedSongId) div.classList.add("selected");
-						div.innerHTML = `${song.title}<span class="mode-tag">${song.display_mode === "background" ? "With Background" : "Lower Transparent"}</span>`;
+						div.innerHTML = `${escapeHtml(song.title)}<span class="mode-tag">${song.display_mode === "background" ? "With Background" : "Lower Transparent"}</span>`;
 						div.onclick = () => openSong(song.id);
 						songListEl.appendChild(div);
 					});
 				} catch (_) {}
 			}
 
-			document.getElementById("newSongBtn").onclick = () => {
-				selectedSongId = null;
-				builder.classList.add("active");
-				liveView.style.display = "none";
-				document.getElementById("titleInput").value = "";
-				sectionsWrap.innerHTML = "";
-				addSectionBlock();
-			};
+			function escapeHtml(text) {
+				const div = document.createElement("div");
+				div.textContent = text ?? "";
+				return div.innerHTML;
+			}
 
-			function addSectionBlock() {
+			function addSectionBlock(label = "", lines = "") {
 				const div = document.createElement("div");
 				div.className = "section-block";
 				div.innerHTML = `
-      <input type="text" class="sec-label" placeholder="Section name (e.g. Chorus, Verse 1)">
-      <textarea class="sec-lines" placeholder="Type lyric lines for this section, one per line"></textarea>
-    `;
+					<div class="section-block-header">
+						<input type="text" class="sec-label" placeholder="Section name (e.g. Verse 1, Chorus)" value="${escapeHtml(label)}" />
+						<button type="button" class="remove-sec-btn" title="Remove section">✕</button>
+					</div>
+					<textarea class="sec-lines" placeholder="Type lyric lines for this section, one per line">${escapeHtml(lines)}</textarea>
+				`;
+
+				div.querySelector(".remove-sec-btn").onclick = () => {
+					div.remove();
+					if (sectionsWrap.children.length === 0) {
+						addSectionBlock();
+					}
+				};
+
 				sectionsWrap.appendChild(div);
 			}
 
-			document.getElementById("addSectionBtn").onclick = addSectionBlock;
+			document.getElementById("addSectionBtn").onclick = () => addSectionBlock();
 
-			document.getElementById("saveSongBtn").onclick = async () => {
-				const title = document.getElementById("titleInput").value.trim();
+			document.getElementById("newSongBtn").onclick = () => {
+				editingSongId = null;
+				builderHeading.textContent = "New Song";
+				saveSongBtn.textContent = "Save Song";
+				titleInput.value = "";
+				document.querySelector('input[name="mode"][value="background"]').checked = true;
+				sectionsWrap.innerHTML = "";
+				addSectionBlock();
+
+				liveView.style.display = "none";
+				builder.classList.add("active");
+				titleInput.focus();
+			};
+
+			function cancelBuilder() {
+				builder.classList.remove("active");
+				if (selectedSongId && currentSongData) {
+					liveView.style.display = "block";
+				} else {
+					liveView.style.display = "none";
+				}
+			}
+
+			document.getElementById("cancelBuilderBtn").onclick = cancelBuilder;
+			document.getElementById("cancelBuilderBtn2").onclick = cancelBuilder;
+
+			document.getElementById("editSongBtn").onclick = () => {
+				if (!currentSongData) return;
+				editingSongId = currentSongData.id;
+				builderHeading.textContent = `Edit Song: ${currentSongData.title}`;
+				saveSongBtn.textContent = "Save Changes";
+				titleInput.value = currentSongData.title;
+
+				const modeRadio = document.querySelector(`input[name="mode"][value="${currentSongData.display_mode}"]`);
+				if (modeRadio) modeRadio.checked = true;
+
+				sectionsWrap.innerHTML = "";
+				if (currentSongData.sections && currentSongData.sections.length > 0) {
+					currentSongData.sections.forEach((sec) => {
+						const linesText = sec.lines.map((l) => l.text).join("\n");
+						addSectionBlock(sec.label, linesText);
+					});
+				} else {
+					addSectionBlock();
+				}
+
+				liveView.style.display = "none";
+				builder.classList.add("active");
+				titleInput.focus();
+			};
+
+			document.getElementById("deleteSongBtn").onclick = async () => {
+				if (!selectedSongId || !currentSongData) return;
+				const confirmed = confirm(`Are you sure you want to delete "${currentSongData.title}"?`);
+				if (!confirmed) return;
+
+				try {
+					const res = await fetch(`/api/songs/${selectedSongId}`, { method: "DELETE" });
+					if (res.ok) {
+						showToast("Song deleted");
+						sendWs({ channel: "song", type: "clear" });
+						selectedSongId = null;
+						currentSongData = null;
+						activeSectionIndex = -1;
+						liveView.style.display = "none";
+						builder.classList.remove("active");
+						loadSongs();
+					} else {
+						alert("Failed to delete song");
+					}
+				} catch (_) {
+					alert("Network error while deleting song");
+				}
+			};
+
+			saveSongBtn.onclick = async () => {
+				const title = titleInput.value.trim();
 				if (!title) return alert("Enter a song title");
 				const mode = document.querySelector("input[name=mode]:checked").value;
 
@@ -526,14 +763,38 @@
 				if (!sections.length)
 					return alert("Add at least one section with lyrics");
 
-				await fetch("/api/songs", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ title, display_mode: mode, sections }),
-				});
-
-				builder.classList.remove("active");
-				loadSongs();
+				try {
+					if (editingSongId !== null) {
+						// Update existing song
+						const res = await fetch(`/api/songs/${editingSongId}`, {
+							method: "PUT",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ title, display_mode: mode, sections }),
+						});
+						if (!res.ok) throw new Error("Failed to update song");
+						showToast("Song updated successfully");
+						builder.classList.remove("active");
+						await loadSongs();
+						await openSong(editingSongId);
+					} else {
+						// Create new song
+						const res = await fetch("/api/songs", {
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ title, display_mode: mode, sections }),
+						});
+						if (!res.ok) throw new Error("Failed to create song");
+						const data = await res.json();
+						showToast("Song created successfully");
+						builder.classList.remove("active");
+						await loadSongs();
+						if (data && data.id) {
+							await openSong(data.id);
+						}
+					}
+				} catch (err) {
+					alert(err.message || "Failed to save song");
+				}
 			};
 
 			async function openSong(id) {
@@ -542,34 +803,39 @@
 				builder.classList.remove("active");
 				liveView.style.display = "block";
 
-				const res = await fetch(`/api/songs/${id}`);
-				const song = await res.json();
+				try {
+					const res = await fetch(`/api/songs/${id}`);
+					const song = await res.json();
+					currentSongData = song;
 
-				document.getElementById("liveTitleLabel").textContent = song.title;
-				const liveSections = document.getElementById("liveSections");
-				liveSections.innerHTML = "";
+					liveTitleLabel.textContent = song.title;
+					liveModeBadge.textContent = song.display_mode === "background" ? "With Background" : "Lower Transparent";
+					liveSections.innerHTML = "";
 
-				song.sections.forEach((sec, i) => {
-					const div = document.createElement("div");
-					div.className = "live-section";
-					const linesText = sec.lines.map((l) => l.text).join("\n");
-					div.innerHTML = `<span class="label">${sec.label}</span><span class="lines">${linesText}</span>`;
-					div.onclick = () => {
-						activeSectionIndex = i;
-						[...liveSections.children].forEach((el) =>
-							el.classList.remove("active"),
-						);
-						div.classList.add("active");
-						sendWs({
-							channel: "song",
-							mode: song.display_mode,
-							text: linesText,
+					if (song.sections) {
+						song.sections.forEach((sec, i) => {
+							const div = document.createElement("div");
+							div.className = "live-section";
+							const linesText = sec.lines.map((l) => l.text).join("\n");
+							div.innerHTML = `<span class="label">${escapeHtml(sec.label)}</span><span class="lines">${escapeHtml(linesText)}</span>`;
+							div.onclick = () => {
+								activeSectionIndex = i;
+								[...liveSections.children].forEach((el) =>
+									el.classList.remove("active"),
+								);
+								div.classList.add("active");
+								sendWs({
+									channel: "song",
+									mode: song.display_mode,
+									text: linesText,
+								});
+							};
+							liveSections.appendChild(div);
 						});
-					};
-					liveSections.appendChild(div);
-				});
+					}
 
-				loadSongs();
+					loadSongs();
+				} catch (_) {}
 			}
 
 			document.getElementById("clearBtn").onclick = () => {

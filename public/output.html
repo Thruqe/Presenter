@@ -2,6 +2,8 @@
 <html>
 	<head>
 		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Scripture Output</title>
 		<style>
 			* {
 				margin: 0;
@@ -13,12 +15,12 @@
 				width: 100%;
 				height: 100%;
 				background: transparent;
+				overflow: hidden;
 			}
 			body {
 				display: flex;
 				align-items: center;
 				justify-content: center;
-				overflow: hidden;
 			}
 			#wrap {
 				width: 85%;
@@ -38,23 +40,27 @@
 				pointer-events: none;
 			}
 			#verse {
-				font-family: "Book Antiqua", "Palatino Linotype", serif;
-				font-size: clamp(28px, 4.5vw, 72px);
+				font-family: "Book Antiqua", "Palatino Linotype", "Georgia", "Times New Roman", serif;
+				font-size: clamp(22px, min(3.5vw, 5.2vh), 60px);
 				font-weight: bold;
 				color: white;
-				line-height: 1.4;
+				line-height: 1.38;
 				text-shadow:
 					0 3px 16px rgba(0, 0, 0, 0.9),
 					0 0 6px rgba(0, 0, 0, 0.7),
 					0 0 2px rgba(0, 0, 0, 0.8);
+				word-break: normal;
+				overflow-wrap: break-word;
 			}
 			#ref {
-				margin-top: 1.5vw;
-				font-family: "Book Antiqua", "Palatino Linotype", serif;
-				font-size: clamp(28px, 4.5vw, 72px);
+				margin-top: clamp(12px, 1.4vw, 24px);
+				font-family: "Book Antiqua", "Palatino Linotype", "Georgia", "Times New Roman", serif;
+				font-size: clamp(18px, min(2.5vw, 3.8vh), 42px);
 				font-weight: bold;
 				color: #e8d9a0;
 				text-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+				word-break: normal;
+				overflow-wrap: break-word;
 			}
 		</style>
 	</head>
@@ -76,6 +82,35 @@
 				const protocol = location.protocol === "https:" ? "wss:" : "ws:";
 				return `${protocol}//${location.host}/ws`;
 			}
+
+			function ensureFits() {
+				verseEl.style.fontSize = "";
+				refEl.style.fontSize = "";
+				refEl.style.marginTop = "";
+
+				const maxH = window.innerHeight * 0.88;
+				const maxW = window.innerWidth * 0.88;
+
+				if (wrap.scrollHeight > maxH || wrap.scrollWidth > maxW) {
+					const computedVerseSize = parseFloat(window.getComputedStyle(verseEl).fontSize) || 36;
+					const scale = Math.min(maxH / wrap.scrollHeight, maxW / wrap.scrollWidth);
+					const newVerseSize = Math.max(14, Math.floor(computedVerseSize * scale));
+					const newRefSize = Math.max(12, Math.floor(newVerseSize * 0.7));
+					const newMargin = Math.max(8, Math.floor(newVerseSize * 0.3));
+
+					verseEl.style.fontSize = newVerseSize + "px";
+					refEl.style.fontSize = newRefSize + "px";
+					refEl.style.marginTop = newMargin + "px";
+				}
+			}
+
+			let resizeRaf = null;
+			window.addEventListener("resize", () => {
+				if (resizeRaf) cancelAnimationFrame(resizeRaf);
+				resizeRaf = requestAnimationFrame(() => {
+					ensureFits();
+				});
+			});
 
 			function connect() {
 				if (
@@ -108,6 +143,7 @@
 						setTimeout(() => {
 							verseEl.textContent = data.text;
 							refEl.textContent = `${data.book} ${data.chapter}:${data.verse}`;
+							ensureFits();
 							wrap.classList.remove("hidden");
 							wrap.classList.add("visible");
 						}, 200);

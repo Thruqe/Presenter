@@ -2,6 +2,8 @@
 <html>
 	<head>
 		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Song Output</title>
 		<style>
 			* {
 				margin: 0;
@@ -29,6 +31,9 @@
 			}
 
 			/* Lower mode: transparent, fixed to bottom */
+			body.lower-mode {
+				display: block;
+			}
 			body.lower-mode #wrap {
 				position: fixed;
 				left: 0;
@@ -40,7 +45,7 @@
 
 			#wrap {
 				opacity: 0;
-				transform: translateY(15px);
+				transform: translateY(12px);
 				transition:
 					opacity 0.5s ease,
 					transform 0.5s ease;
@@ -51,21 +56,23 @@
 			}
 
 			#lyrics {
-				font-family: "Book Antiqua", "Palatino Linotype", serif;
+				font-family: "Book Antiqua", "Palatino Linotype", "Georgia", "Times New Roman", serif;
 				font-weight: bold;
 				color: white;
-				line-height: 1.4;
+				line-height: 1.38;
 				white-space: pre-line;
 				text-shadow:
 					0 3px 16px rgba(0, 0, 0, 0.9),
 					0 0 6px rgba(0, 0, 0, 0.7),
 					0 0 2px rgba(0, 0, 0, 0.8);
+				word-break: normal;
+				overflow-wrap: break-word;
 			}
 			body.bg-mode #lyrics {
-				font-size: clamp(28px, 4.5vw, 72px);
+				font-size: clamp(22px, min(3.5vw, 5.2vh), 60px);
 			}
 			body.lower-mode #lyrics {
-				font-size: clamp(24px, 4vw, 64px);
+				font-size: clamp(20px, min(3vw, 4vh), 48px);
 			}
 		</style>
 	</head>
@@ -86,6 +93,29 @@
 				const protocol = location.protocol === "https:" ? "wss:" : "ws:";
 				return `${protocol}//${location.host}/ws`;
 			}
+
+			function ensureFits() {
+				lyricsEl.style.fontSize = "";
+
+				const isBg = body.classList.contains("bg-mode");
+				const maxH = window.innerHeight * (isBg ? 0.88 : 0.35);
+				const maxW = window.innerWidth * 0.88;
+
+				if (wrap.scrollHeight > maxH || wrap.scrollWidth > maxW) {
+					const computedSize = parseFloat(window.getComputedStyle(lyricsEl).fontSize) || 32;
+					const scale = Math.min(maxH / wrap.scrollHeight, maxW / wrap.scrollWidth);
+					const newSize = Math.max(14, Math.floor(computedSize * scale));
+					lyricsEl.style.fontSize = newSize + "px";
+				}
+			}
+
+			let resizeRaf = null;
+			window.addEventListener("resize", () => {
+				if (resizeRaf) cancelAnimationFrame(resizeRaf);
+				resizeRaf = requestAnimationFrame(() => {
+					ensureFits();
+				});
+			});
 
 			function connect() {
 				if (
@@ -119,6 +149,7 @@
 						wrap.classList.remove("visible");
 						setTimeout(() => {
 							lyricsEl.textContent = data.text;
+							ensureFits();
 							wrap.classList.add("visible");
 						}, 200);
 					} catch (_) {}

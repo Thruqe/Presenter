@@ -15,6 +15,8 @@ import {
     insertLine,
     deleteSong,
     getFullSong,
+    updateSong,
+    removeSong,
 } from "./songs";
 import {
     handleWsOpen,
@@ -170,8 +172,29 @@ async function handleFetch(req: Request, server: Bun.Server<unknown>): Promise<R
             } else if (req.method === "GET") {
                 const song = getFullSong(songId);
                 response = Response.json(song ?? {});
+            } else if (req.method === "PUT") {
+                try {
+                    const body = (await req.json()) as Partial<CreateSongInput>;
+                    const title = typeof body.title === "string" ? body.title : "";
+                    const displayMode = typeof body.display_mode === "string" ? body.display_mode : "lower";
+                    const sections = Array.isArray(body.sections) ? body.sections : [];
+
+                    const success = updateSong(songId, {
+                        title,
+                        display_mode: displayMode,
+                        sections,
+                    });
+
+                    if (success) {
+                        response = Response.json({ ok: true, id: songId });
+                    } else {
+                        response = new Response("Song not found", { status: 404 });
+                    }
+                } catch {
+                    response = new Response("Invalid JSON payload", { status: 400 });
+                }
             } else if (req.method === "DELETE") {
-                deleteSong.run(songId);
+                removeSong(songId);
                 response = Response.json({ ok: true });
             } else {
                 response = new Response("Method not allowed", { status: 405 });
