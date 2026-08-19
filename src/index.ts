@@ -89,8 +89,9 @@ async function handleFetch(req: Request, server: Bun.Server<unknown>): Promise<R
             response = Response.json([]);
         } else {
             const ref = parseRef(query);
-            if (ref !== null) {
-                const chapterVerses = getFullChapterVerses(ref.book, ref.chapter);
+            let chapterVerses = ref !== null ? getFullChapterVerses(ref.book, ref.chapter) : [];
+
+            if (chapterVerses.length > 0) {
                 response = Response.json(chapterVerses);
             } else {
                 const books = findBooks(query);

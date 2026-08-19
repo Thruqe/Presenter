@@ -429,21 +429,90 @@
 
 			connectWs();
 
+			function parseQueryRef(str) {
+				const trimmed = str.trim();
+				// Match book, chapter, and verse: e.g. "Genesis 1 1", "Genesis 1:1", "1 John 3 16", "1 John 3:16", "Songs of Solomon 2 4"
+				const withVerse = trimmed.match(/^(\s*.*?\S)\s+(\d+)[\s:]+(\d+\s*)$/);
+				if (withVerse) {
+					return {
+						book: withVerse[1].trim(),
+						chapter: parseInt(withVerse[2], 10),
+						verse: parseInt(withVerse[3].trim(), 10),
+						isVerse: true,
+					};
+				}
+				// Match book and chapter: e.g. "Genesis 1", "Genesis 1:", "1 John 3"
+				const chapterOnly = trimmed.match(/^(\s*.*?\S)\s+(\d+):?$/);
+				if (chapterOnly) {
+					return {
+						book: chapterOnly[1].trim(),
+						chapter: parseInt(chapterOnly[2], 10),
+						verse: null,
+						isVerse: false,
+					};
+				}
+				return null;
+			}
+
+			async function doSearch(q, autoSelectVerse = false) {
+				if (!q || !q.trim()) {
+					resultsEl.innerHTML = "";
+					focusedIndex = -1;
+					return [];
+				}
+
+				const parsed = parseQueryRef(q);
+
+				// Auto-format "Genesis 1 1" to "Genesis 1:1" in the search input
+				if (parsed && parsed.verse !== null) {
+					const formatted = `${parsed.book} ${parsed.chapter}:${parsed.verse}`;
+					if (searchEl.value !== formatted && searchEl.value.trim() !== formatted) {
+						const isFocused = document.activeElement === searchEl;
+						const start = searchEl.selectionStart;
+						const end = searchEl.selectionEnd;
+						searchEl.value = formatted;
+						if (isFocused && start !== null && end !== null) {
+							const diff = formatted.length - q.length;
+							const newPos = Math.max(0, Math.min(formatted.length, start + diff));
+							searchEl.setSelectionRange(newPos, newPos);
+						}
+					}
+				}
+
+				try {
+					const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+					const rows = await res.json();
+					renderResults(rows);
+
+					if (parsed && parsed.verse !== null && rows.length > 0 && rows[0].type !== "book") {
+						const matchIndex = rows.findIndex(
+							(r) =>
+								r.verse === parsed.verse &&
+								(!parsed.book || r.book.toLowerCase() === parsed.book.toLowerCase()),
+						);
+						if (matchIndex !== -1) {
+							setFocus(matchIndex);
+							if (autoSelectVerse) {
+								const items = resultsEl.querySelectorAll(".result");
+								if (items[matchIndex]) items[matchIndex].click();
+							}
+						} else {
+							focusedIndex = -1;
+						}
+					} else {
+						focusedIndex = -1;
+					}
+					return rows;
+				} catch (_) {
+					return [];
+				}
+			}
+
 			searchEl.addEventListener("input", () => {
 				clearTimeout(debounce);
 				const q = searchEl.value;
-				debounce = setTimeout(async () => {
-					if (!q) {
-						resultsEl.innerHTML = "";
-						focusedIndex = -1;
-						return;
-					}
-					try {
-						const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-						const rows = await res.json();
-						renderResults(rows);
-						focusedIndex = -1;
-					} catch (_) {}
+				debounce = setTimeout(() => {
+					doSearch(q);
 				}, 150);
 			});
 
@@ -533,7 +602,7 @@
 				el.scrollIntoView({ block: "nearest" });
 			}
 
-			searchEl.addEventListener("keydown", (e) => {
+			searchEl.addEventListener("keydown", async (e) => {
 				const items = resultsEl.querySelectorAll(".result");
 				if (e.key === "ArrowDown") {
 					e.preventDefault();
@@ -543,15 +612,23 @@
 					setFocus(focusedIndex - 1);
 				} else if (e.key === "Enter") {
 					e.preventDefault();
+					clearTimeout(debounce);
 
-					const m = searchEl.value.trim().match(/^(.*?)\s+(\d+):(\d+)$/);
-					if (m) {
-						const wantedRef = `${m[1].trim()} ${m[2]}:${m[3]}`;
+					const q = searchEl.value;
+					const parsed = parseQueryRef(q);
+
+					if (parsed && parsed.verse !== null) {
+						const formatted = `${parsed.book} ${parsed.chapter}:${parsed.verse}`;
+						if (searchEl.value !== formatted) {
+							searchEl.value = formatted;
+						}
+
 						const matchIndex = [...items].findIndex(
 							(el) =>
 								el._row &&
-								`${el._row.book} ${el._row.chapter}:${el._row.verse}` ===
-									wantedRef,
+								el._row.chapter === parsed.chapter &&
+								el._row.verse === parsed.verse &&
+								(!parsed.book || el._row.book.toLowerCase() === parsed.book.toLowerCase()),
 						);
 						if (matchIndex !== -1) {
 							focusedIndex = matchIndex;
@@ -562,6 +639,9 @@
 							});
 							return;
 						}
+
+						await doSearch(q, true);
+						return;
 					}
 
 					const target = focusedIndex >= 0 ? items[focusedIndex] : items[0];

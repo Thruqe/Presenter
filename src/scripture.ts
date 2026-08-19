@@ -25,7 +25,7 @@ const searchVerseText = db.query<VerseRecord, [string]>(
 const getVerseQuery = db.query<VerseRecord, [string, number, number]>(
     `SELECT v.id, b.name as book, v.chapter, v.verse, v.text
    FROM verse v JOIN book b ON b.id = v.book_id
-   WHERE b.name = ? AND v.chapter = ? AND v.verse = ?`
+   WHERE b.name = ? COLLATE NOCASE AND v.chapter = ? AND v.verse = ?`
 );
 
 /**
@@ -34,7 +34,7 @@ const getVerseQuery = db.query<VerseRecord, [string, number, number]>(
 const getFullChapterQuery = db.query<VerseRecord, [string, number]>(
     `SELECT v.id, b.name as book, v.chapter, v.verse, v.text
    FROM verse v JOIN book b ON b.id = v.book_id
-   WHERE b.name = ? AND v.chapter = ? ORDER BY v.verse`
+   WHERE b.name = ? COLLATE NOCASE AND v.chapter = ? ORDER BY v.verse`
 );
 
 /**
@@ -51,38 +51,53 @@ export function cleanText(text: string): string {
 }
 
 /**
- * Parse input reference search query string (e.g., "John 3:16", "1 John 3:16", "John 3").
+ * Parse input reference search query string (e.g., "John 3:16", "Genesis 1 1", "1 John 3:16", "John 3").
  *
  * @param query Input search string
  * @returns Parsed scripture object or null if input format does not match
  */
 export function parseRef(query: string): ParsedRef | null {
     const trimmed = query.trim();
-    const match = trimmed.match(/^(.*?)\s+(\d+)(?::(\d*))?$/);
-    if (!match) return null;
 
-    const bookPart = match[1];
-    const chapterPart = match[2];
-    const versePart = match[3];
+    // Match book, chapter, and verse: e.g. "Genesis 1 1", "Genesis 1:1", "1 John 3 16", "1 John 3:16", "Songs of Solomon 2 4"
+    const matchWithVerse = trimmed.match(/^(.*?)\s+(\d+)[\s:]+(\d+)$/);
+    if (matchWithVerse) {
+        const bookPart = matchWithVerse[1]?.trim();
+        const chapterPart = matchWithVerse[2];
+        const versePart = matchWithVerse[3];
 
-    if (!bookPart || !chapterPart) return null;
-
-    const parsedChapter = parseInt(chapterPart, 10);
-    if (isNaN(parsedChapter)) return null;
-
-    let parsedVerse: number | null = null;
-    if (versePart && versePart.trim() !== "") {
-        const tempVerse = parseInt(versePart, 10);
-        if (!isNaN(tempVerse)) {
-            parsedVerse = tempVerse;
+        if (bookPart && chapterPart && versePart) {
+            const parsedChapter = parseInt(chapterPart, 10);
+            const parsedVerse = parseInt(versePart, 10);
+            if (!isNaN(parsedChapter) && !isNaN(parsedVerse)) {
+                return {
+                    book: bookPart,
+                    chapter: parsedChapter,
+                    verse: parsedVerse,
+                };
+            }
         }
     }
 
-    return {
-        book: bookPart.trim(),
-        chapter: parsedChapter,
-        verse: parsedVerse,
-    };
+    // Match book and chapter only: e.g. "Genesis 1", "Genesis 1:", "1 John 3", "Songs of Solomon 2"
+    const matchChapterOnly = trimmed.match(/^(.*?)\s+(\d+):?$/);
+    if (matchChapterOnly) {
+        const bookPart = matchChapterOnly[1]?.trim();
+        const chapterPart = matchChapterOnly[2];
+
+        if (bookPart && chapterPart) {
+            const parsedChapter = parseInt(chapterPart, 10);
+            if (!isNaN(parsedChapter)) {
+                return {
+                    book: bookPart,
+                    chapter: parsedChapter,
+                    verse: null,
+                };
+            }
+        }
+    }
+
+    return null;
 }
 
 /**
