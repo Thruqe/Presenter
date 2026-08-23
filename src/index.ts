@@ -29,21 +29,37 @@ const PREFERRED_PORT = Number(process.env.PORT) || 8642;
 
 /**
  * Determine the machine's LAN-facing IPv4 address so other devices on the
- * same network can reach this server.
+ * same network can reach this server, ignoring VPNs and virtual interfaces.
  *
- * @returns The first non-internal IPv4 address found, or null if none exists
- *          (e.g. no network connection).
+ * @returns The physical LAN IPv4 address found, or null if none exists.
  */
 function getLocalIp(): string | null {
     const nets = networkInterfaces();
+    const fallbackCandidates: string[] = [];
+
+    // Common virtual interface naming patterns on Windows, Linux, and macOS
+    const virtualPattern = /cloudflare|warp|wsl|vEthernet|docker|hyper-v|tailscale|loopback|tap|tun/i;
+
     for (const name of Object.keys(nets)) {
+        if (virtualPattern.test(name)) continue;
+
         for (const net of nets[name] ?? []) {
+            // IPv4 only, non-internal
             if (net.family === "IPv4" && !net.internal) {
-                return net.address;
+                // Ignore Cloudflare's virtual/tunnel subnet
+                if (net.address.startsWith("172.16.")) continue;
+
+                // Priority: Standard local subnets (Wi-Fi / Ethernet LAN)
+                if (net.address.startsWith("192.168.") || net.address.startsWith("10.")) {
+                    return net.address;
+                }
+
+                fallbackCandidates.push(net.address);
             }
         }
     }
-    return null;
+
+    return fallbackCandidates[0] ?? null;
 }
 
 /**
