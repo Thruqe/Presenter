@@ -39,7 +39,7 @@
 				left: 0;
 				right: 0;
 				bottom: 0;
-				padding: 3vh 4vw;
+				padding: 2vh 3vw;
 				text-align: center;
 			}
 
@@ -68,11 +68,15 @@
 				word-break: normal;
 				overflow-wrap: break-word;
 			}
+			/* Lower-third: ignore newlines, let text flow & wrap naturally */
+			body.lower-mode #lyrics {
+				white-space: normal;
+			}
 			body.bg-mode #lyrics {
 				font-size: clamp(22px, min(3.5vw, 5.2vh), 60px);
 			}
 			body.lower-mode #lyrics {
-				font-size: clamp(20px, min(3vw, 4vh), 48px);
+				font-size: 5.85vh;
 			}
 		</style>
 	</head>
@@ -95,42 +99,49 @@
 			}
 
 			function ensureFits() {
-				// Reset to CSS-computed base size (from clamp)
-				lyricsEl.style.fontSize = "";
-
 				const isBg = body.classList.contains("bg-mode");
-				const maxH = window.innerHeight * (isBg ? 0.88 : 0.35);
-				const maxW = window.innerWidth * 0.88;
 
-				// Binary-search for the largest font size that still fits —
-				// just like EasyWorship: always maximum size, never overflow, never hidden.
-				const baseSize = parseFloat(window.getComputedStyle(lyricsEl).fontSize) || 32;
+				// Reset overrides
+				lyricsEl.style.fontSize = "";
+				lyricsEl.style.transform = "";
+				lyricsEl.style.transformOrigin = "";
 
-				let lo = 10;
-				let hi = Math.max(baseSize, 120); // search ceiling
-
-				// Expand hi if base already fits — so we can grow text too
-				lyricsEl.style.fontSize = hi + "px";
-				while (wrap.scrollHeight <= maxH && wrap.scrollWidth <= maxW && hi < 300) {
-					hi *= 1.5;
+				if (isBg) {
+					// bg-mode: binary-search fill-to-fit
+					const maxH = window.innerHeight * 0.88;
+					const maxW = window.innerWidth * 0.88;
+					const baseSize = parseFloat(window.getComputedStyle(lyricsEl).fontSize) || 32;
+					let lo = 10, hi = Math.max(baseSize, 120);
 					lyricsEl.style.fontSize = hi + "px";
-				}
-
-				// Binary search between lo and hi
-				let best = lo;
-				for (let iter = 0; iter < 20; iter++) {
-					const mid = Math.floor((lo + hi) / 2);
-					if (mid === lo) break;
-					lyricsEl.style.fontSize = mid + "px";
-					if (wrap.scrollHeight <= maxH && wrap.scrollWidth <= maxW) {
-						best = mid;
-						lo = mid;
-					} else {
-						hi = mid;
+					while (lyricsEl.scrollHeight <= maxH && lyricsEl.scrollWidth <= maxW && hi < 300) {
+						hi *= 1.5;
+						lyricsEl.style.fontSize = hi + "px";
+					}
+					let best = lo;
+					for (let i = 0; i < 20; i++) {
+						const mid = Math.floor((lo + hi) / 2);
+						if (mid === lo) break;
+						lyricsEl.style.fontSize = mid + "px";
+						if (lyricsEl.scrollHeight <= maxH && lyricsEl.scrollWidth <= maxW) {
+							best = mid; lo = mid;
+						} else {
+							hi = mid;
+						}
+					}
+					lyricsEl.style.fontSize = best + "px";
+				} else {
+					// lower-mode: CSS sets a large vh-based font; only scale DOWN if it overflows.
+					// We use transform:scale so OBS layout is never broken.
+					const maxH = window.innerHeight * 0.88;
+					const maxW = window.innerWidth * 0.96;
+					const h = lyricsEl.scrollHeight;
+					const w = lyricsEl.scrollWidth;
+					if (h > maxH || w > maxW) {
+						const scale = Math.min(maxH / h, maxW / w);
+						lyricsEl.style.transformOrigin = "bottom center";
+						lyricsEl.style.transform = `scale(${scale})`;
 					}
 				}
-
-				lyricsEl.style.fontSize = best + "px";
 			}
 
 			let resizeRaf = null;
