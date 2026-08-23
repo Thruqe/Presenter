@@ -84,6 +84,7 @@
 			}
 
 			function ensureFits() {
+				// Reset to CSS-computed base size (from clamp)
 				verseEl.style.fontSize = "";
 				refEl.style.fontSize = "";
 				refEl.style.marginTop = "";
@@ -91,17 +92,43 @@
 				const maxH = window.innerHeight * 0.88;
 				const maxW = window.innerWidth * 0.88;
 
-				if (wrap.scrollHeight > maxH || wrap.scrollWidth > maxW) {
-					const computedVerseSize = parseFloat(window.getComputedStyle(verseEl).fontSize) || 36;
-					const scale = Math.min(maxH / wrap.scrollHeight, maxW / wrap.scrollWidth);
-					const newVerseSize = Math.max(14, Math.floor(computedVerseSize * scale));
-					const newRefSize = Math.max(12, Math.floor(newVerseSize * 0.7));
-					const newMargin = Math.max(8, Math.floor(newVerseSize * 0.3));
+				// Binary-search for the largest font size that still fits —
+				// just like EasyWorship: always maximum size, never overflow, never hidden.
+				const baseSize = parseFloat(window.getComputedStyle(verseEl).fontSize) || 36;
 
-					verseEl.style.fontSize = newVerseSize + "px";
-					refEl.style.fontSize = newRefSize + "px";
-					refEl.style.marginTop = newMargin + "px";
+				let lo = 10;
+				let hi = Math.max(baseSize, 120); // search ceiling
+
+				// Expand hi if base already fits — so we can grow text too
+				verseEl.style.fontSize = hi + "px";
+				refEl.style.fontSize = Math.floor(hi * 0.7) + "px";
+				refEl.style.marginTop = Math.floor(hi * 0.3) + "px";
+				while (wrap.scrollHeight <= maxH && wrap.scrollWidth <= maxW && hi < 300) {
+					hi *= 1.5;
+					verseEl.style.fontSize = hi + "px";
+					refEl.style.fontSize = Math.floor(hi * 0.7) + "px";
+					refEl.style.marginTop = Math.floor(hi * 0.3) + "px";
 				}
+
+				// Binary search between lo and hi
+				let best = lo;
+				for (let iter = 0; iter < 20; iter++) {
+					const mid = Math.floor((lo + hi) / 2);
+					if (mid === lo) break;
+					verseEl.style.fontSize = mid + "px";
+					refEl.style.fontSize = Math.floor(mid * 0.7) + "px";
+					refEl.style.marginTop = Math.floor(mid * 0.3) + "px";
+					if (wrap.scrollHeight <= maxH && wrap.scrollWidth <= maxW) {
+						best = mid;
+						lo = mid;
+					} else {
+						hi = mid;
+					}
+				}
+
+				verseEl.style.fontSize = best + "px";
+				refEl.style.fontSize = Math.floor(best * 0.7) + "px";
+				refEl.style.marginTop = Math.floor(best * 0.3) + "px";
 			}
 
 			let resizeRaf = null;

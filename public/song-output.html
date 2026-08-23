@@ -95,18 +95,42 @@
 			}
 
 			function ensureFits() {
+				// Reset to CSS-computed base size (from clamp)
 				lyricsEl.style.fontSize = "";
 
 				const isBg = body.classList.contains("bg-mode");
 				const maxH = window.innerHeight * (isBg ? 0.88 : 0.35);
 				const maxW = window.innerWidth * 0.88;
 
-				if (wrap.scrollHeight > maxH || wrap.scrollWidth > maxW) {
-					const computedSize = parseFloat(window.getComputedStyle(lyricsEl).fontSize) || 32;
-					const scale = Math.min(maxH / wrap.scrollHeight, maxW / wrap.scrollWidth);
-					const newSize = Math.max(14, Math.floor(computedSize * scale));
-					lyricsEl.style.fontSize = newSize + "px";
+				// Binary-search for the largest font size that still fits —
+				// just like EasyWorship: always maximum size, never overflow, never hidden.
+				const baseSize = parseFloat(window.getComputedStyle(lyricsEl).fontSize) || 32;
+
+				let lo = 10;
+				let hi = Math.max(baseSize, 120); // search ceiling
+
+				// Expand hi if base already fits — so we can grow text too
+				lyricsEl.style.fontSize = hi + "px";
+				while (wrap.scrollHeight <= maxH && wrap.scrollWidth <= maxW && hi < 300) {
+					hi *= 1.5;
+					lyricsEl.style.fontSize = hi + "px";
 				}
+
+				// Binary search between lo and hi
+				let best = lo;
+				for (let iter = 0; iter < 20; iter++) {
+					const mid = Math.floor((lo + hi) / 2);
+					if (mid === lo) break;
+					lyricsEl.style.fontSize = mid + "px";
+					if (wrap.scrollHeight <= maxH && wrap.scrollWidth <= maxW) {
+						best = mid;
+						lo = mid;
+					} else {
+						hi = mid;
+					}
+				}
+
+				lyricsEl.style.fontSize = best + "px";
 			}
 
 			let resizeRaf = null;
