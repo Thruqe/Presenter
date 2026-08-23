@@ -13,7 +13,6 @@ import {
     insertSong,
     insertSection,
     insertLine,
-    deleteSong,
     getFullSong,
     updateSong,
     removeSong,
