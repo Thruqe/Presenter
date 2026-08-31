@@ -249,3 +249,9 @@ const server = Bun.serve({
 const activePort = server.port ?? PREFERRED_PORT;
 const lanIp = getLocalIp();
 await logServerStart(activePort, lanIp);
+
+
+declare const self: Worker;
+if (typeof postMessage === "function") {
+    postMessage({ type: "ready", port: activePort });
+}

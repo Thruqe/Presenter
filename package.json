@@ -6,7 +6,22 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun --watch src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:server:linux": "bun build --compile --minify --sourcemap --target=bun-linux-x64 ./src/index.ts --outfile dist/presenter-server-linux-x64",
+    "build:server:linux-arm64": "bun build --compile --minify --sourcemap --target=bun-linux-arm64 ./src/index.ts --outfile dist/presenter-server-linux-arm64",
+    "build:server:linux-musl": "bun build --compile --minify --sourcemap --target=bun-linux-x64-musl ./src/index.ts --outfile dist/presenter-server-linux-x64-musl",
+    "build:server:macos": "bun build --compile --minify --sourcemap --target=bun-darwin-x64 ./src/index.ts --outfile dist/presenter-server-macos-x64",
+    "build:server:macos-arm64": "bun build --compile --minify --sourcemap --target=bun-darwin-arm64 ./src/index.ts --outfile dist/presenter-server-macos-arm64",
+    "build:server:windows": "bun build --compile --minify --sourcemap --target=bun-windows-x64 ./src/index.ts --outfile dist/presenter-server-windows-x64.exe",
+    "build:server:all": "bun run build:server:linux && bun run build:server:linux-arm64 && bun run build:server:linux-musl && bun run build:server:macos && bun run build:server:macos-arm64 && bun run build:server:windows",
+    "build:gui:linux": "bun build --compile --minify --sourcemap --target=bun-linux-x64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-linux-x64",
+    "build:gui:linux-arm64": "bun build --compile --minify --sourcemap --target=bun-linux-arm64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-linux-arm64",
+    "build:gui:macos": "bun build --compile --minify --sourcemap --target=bun-darwin-x64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-macos-x64",
+    "build:gui:macos-arm64": "bun build --compile --minify --sourcemap --target=bun-darwin-arm64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-macos-arm64",
+    "build:gui:windows": "bun build --compile --minify --sourcemap --target=bun-windows-x64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-windows-x64.exe",
+    "build:gui:all": "bun run build:gui:linux && bun run build:gui:linux-arm64 && bun run build:gui:macos && bun run build:gui:macos-arm64 && bun run build:gui:windows",
+    "build:assets": "mkdir -p dist/public dist/db && cp -r public/* dist/public/ && cp -r db/* dist/db/",
+    "build:all": "bun run build:server:all && bun run build:gui:all && bun run build:assets"
   },
   "devDependencies": {
     "@types/bun": "1.4.0"
@@ -16,6 +31,7 @@
   },
   "dependencies": {
     "@types/qrcode": "^1.5.6",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "webview-bun": "^2.4.0"
   }
 }
