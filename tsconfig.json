@@ -12,6 +12,9 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
+    "paths": {
+      "webview-bun": ["./src/types/webview-bun.d.ts"]
+    },
 
     "strict": true,
     "skipLibCheck": true,
@@ -22,5 +25,7 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
-  }
+  },
+  "include": ["src/**/*", "scripts/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

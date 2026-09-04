@@ -93,6 +93,10 @@ async function handleFetch(req: Request, server: Bun.Server<unknown>): Promise<R
         response = new Response(Bun.file("public/output.html"));
     } else if (path === "/image.png") {
         response = new Response(Bun.file("public/image.png"));
+    } else if (path === "/favicon.ico") {
+        response = new Response(Bun.file("public/favicon.ico"));
+    } else if (path === "/icon.png") {
+        response = new Response(Bun.file("public/icon.png"));
     } else if (path === "/song") {
         response = new Response(Bun.file("public/song-output.html"));
     } else if (path === "/song-control") {

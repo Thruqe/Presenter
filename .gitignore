@@ -1,10 +1,28 @@
 # dependencies (bun install)
 node_modules
 
-# output
-out
-dist
+# output & binary release artifacts
+out/
+dist/
+build/
+release/
+Output/
 *.tgz
+*.tar.gz
+*.zip
+*.7z
+*.exe
+*.dll
+*.so
+*.so.*
+*.dylib
+*.msi
+*.deb
+*.rpm
+*.dmg
+*.pkg
+*.iss.bak
+*.map
 
 # databases directory (if needed to ignore generated runtime db changes or backups)
 # db/*.sqlite

@@ -1,5 +1,17 @@
 {
   "name": "presenter",
+  "version": "1.0.0",
+  "description": "Presenter — Modern Church Scripture & Song Presentation System with OBS & NDI integration",
+  "author": "Thruqe <danielpeter0039@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Thruqe/Presenter.git"
+  },
+  "homepage": "https://github.com/Thruqe/Presenter#readme",
+  "bugs": {
+    "url": "https://github.com/Thruqe/Presenter/issues"
+  },
   "module": "src/index.ts",
   "type": "module",
   "private": true,
@@ -7,6 +19,8 @@
     "start": "bun run src/index.ts",
     "dev": "bun --watch src/index.ts",
     "typecheck": "tsc --noEmit",
+    "generate:icons": "bun run scripts/generate-icons.ts",
+    "stamp:metadata": "bun run scripts/stamp-windows-metadata.ts",
     "build:server:linux": "bun build --compile --minify --sourcemap --target=bun-linux-x64 ./src/index.ts --outfile dist/presenter-server-linux-x64",
     "build:server:linux-arm64": "bun build --compile --minify --sourcemap --target=bun-linux-arm64 ./src/index.ts --outfile dist/presenter-server-linux-arm64",
     "build:server:linux-musl": "bun build --compile --minify --sourcemap --target=bun-linux-x64-musl ./src/index.ts --outfile dist/presenter-server-linux-x64-musl",
@@ -20,11 +34,15 @@
     "build:gui:macos-arm64": "bun build --compile --minify --sourcemap --target=bun-darwin-arm64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-macos-arm64",
     "build:gui:windows": "bun build --compile --minify --sourcemap --target=bun-windows-x64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-windows-x64.exe",
     "build:gui:all": "bun run build:gui:linux && bun run build:gui:linux-arm64 && bun run build:gui:macos && bun run build:gui:macos-arm64 && bun run build:gui:windows",
-    "build:assets": "mkdir -p dist/public dist/db && cp -r public/* dist/public/ && cp -r db/* dist/db/",
+    "build:assets": "mkdir -p dist/public dist/db && cp -r public/* dist/public/ && cp -r db/* dist/db/ && cp assets/icon.ico dist/ 2>/dev/null || true && cp assets/icon.png dist/ 2>/dev/null || true",
+    "build:windows": "bun run build:server:windows && bun run build:gui:windows && bun run build:assets && bun run stamp:metadata",
+    "build:linux": "bun run build:server:linux && bun run build:gui:linux && bun run build:assets",
     "build:all": "bun run build:server:all && bun run build:gui:all && bun run build:assets"
   },
   "devDependencies": {
-    "@types/bun": "1.4.0"
+    "@types/bun": "1.4.0",
+    "png-to-ico": "^3.0.2",
+    "rcedit": "^5.0.2"
   },
   "peerDependencies": {
     "typescript": "^5.9.3"

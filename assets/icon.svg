@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background rounded gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1c1917" />
+      <stop offset="50%" stop-color="#18181b" />
+      <stop offset="100%" stop-color="#09090b" />
+    </linearGradient>
+
+    <!-- Border highlight -->
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.6" />
+      <stop offset="50%" stop-color="#ec4899" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#fbf0df" stop-opacity="0.1" />
+    </linearGradient>
+
+    <!-- Screen frame gradient -->
+    <linearGradient id="screenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#27272a" />
+      <stop offset="100%" stop-color="#18181b" />
+    </linearGradient>
+
+    <!-- Bun Dough gradient -->
+    <linearGradient id="bunDough" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="35%" stop-color="#fbf0df" />
+      <stop offset="100%" stop-color="#f5deb3" />
+    </linearGradient>
+
+    <!-- Golden accent gradient -->
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+
+    <!-- Pink blush gradient -->
+    <linearGradient id="pinkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f472b6" />
+      <stop offset="100%" stop-color="#db2777" />
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#f59e0b" flood-opacity="0.35" />
+    </filter>
+    <filter id="pinkGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#ec4899" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- App Icon Base (Squircle) -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bgGrad)" filter="url(#shadow)" />
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="none" stroke="url(#borderGrad)" stroke-width="3" />
+
+  <!-- Ambient Light Spotlight -->
+  <ellipse cx="256" cy="140" rx="180" ry="100" fill="#f59e0b" opacity="0.1" />
+
+  <!-- Presentation Broadcast Rays / NDI Wireless Signal -->
+  <path d="M 176 112 A 100 100 0 0 1 336 112" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" opacity="0.3" stroke-dasharray="2 10" />
+  <path d="M 196 124 A 72 72 0 0 1 316 124" fill="none" stroke="#fbf0df" stroke-width="4" stroke-linecap="round" opacity="0.5" />
+  <path d="M 216 136 A 48 48 0 0 1 296 136" fill="none" stroke="#ec4899" stroke-width="4" stroke-linecap="round" opacity="0.7" />
+
+  <!-- The Bun Mascot (Center Top) -->
+  <g transform="translate(0, -6)">
+    <!-- Bun Body -->
+    <path d="M 256 116 C 212 116 196 142 196 166 C 196 186 214 198 256 198 C 298 198 316 186 316 166 C 316 142 300 116 256 116 Z"
+          fill="url(#bunDough)" filter="url(#shadow)" />
+
+    <!-- Top Bun Fold Lines -->
+    <path d="M 256 116 Q 252 134 256 142" stroke="#e0cda9" stroke-width="2.5" stroke-linecap="round" fill="none" />
+    <path d="M 242 119 Q 244 133 248 140" stroke="#e0cda9" stroke-width="2" stroke-linecap="round" fill="none" />
+    <path d="M 270 119 Q 268 133 264 140" stroke="#e0cda9" stroke-width="2" stroke-linecap="round" fill="none" />
+
+    <!-- Cute Eyes -->
+    <ellipse cx="236" cy="158" rx="3.5" ry="5" fill="#18181b" />
+    <ellipse cx="276" cy="158" rx="3.5" ry="5" fill="#18181b" />
+    <!-- Eye gleams -->
+    <circle cx="235" cy="156" r="1.5" fill="#ffffff" />
+    <circle cx="275" cy="156" r="1.5" fill="#ffffff" />
+
+    <!-- Blush Cheeks (Bun Pink) -->
+    <ellipse cx="226" cy="168" rx="7" ry="4" fill="url(#pinkGrad)" filter="url(#pinkGlow)" opacity="0.9" />
+    <ellipse cx="286" cy="168" rx="7" ry="4" fill="url(#pinkGrad)" filter="url(#pinkGlow)" opacity="0.9" />
+
+    <!-- Happy Smile -->
+    <path d="M 251 166 Q 256 172 261 166" stroke="#18181b" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  </g>
+
+  <!-- Presentation Screen Display (Lower Section) -->
+  <g transform="translate(0, 10)">
+    <!-- Outer Screen Frame -->
+    <rect x="72" y="210" width="368" height="220" rx="20" fill="url(#screenGrad)" stroke="#3f3f46" stroke-width="3" filter="url(#shadow)" />
+
+    <!-- Inner Glossy Display Area -->
+    <rect x="82" y="220" width="348" height="200" rx="14" fill="#09090b" />
+
+    <!-- Screen Bevel Accent Bar (Bun Golden Amber) -->
+    <line x1="82" y1="220" x2="430" y2="220" stroke="url(#amberGrad)" stroke-width="2" opacity="0.8" />
+
+    <!-- Center Screen Divider (Subtle) -->
+    <line x1="256" y1="236" x2="256" y2="404" stroke="#27272a" stroke-width="2" stroke-dasharray="4 4" />
+
+    <!-- LEFT SIDE: Scripture Presentation Iconography -->
+    <!-- Open Bible Pages -->
+    <path d="M 126 270 Q 150 262 174 270 L 174 340 Q 150 332 126 340 Z" fill="#222226" stroke="#fbf0df" stroke-width="2" />
+    <path d="M 174 270 Q 198 262 222 270 L 222 340 Q 198 332 174 340 Z" fill="#27272c" stroke="#fbf0df" stroke-width="2" />
+    <line x1="174" y1="268" x2="174" y2="342" stroke="#f59e0b" stroke-width="2.5" />
+
+    <!-- Scripture Text Lines (Amber & Cream) -->
+    <line x1="138" y1="284" x2="164" y2="284" stroke="#fbf0df" stroke-width="2.5" stroke-linecap="round" opacity="0.85" />
+    <line x1="138" y1="296" x2="164" y2="296" stroke="#fbf0df" stroke-width="2.5" stroke-linecap="round" opacity="0.85" />
+    <line x1="138" y1="308" x2="156" y2="308" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" />
+
+    <line x1="184" y1="284" x2="210" y2="284" stroke="#fbf0df" stroke-width="2.5" stroke-linecap="round" opacity="0.85" />
+    <line x1="184" y1="296" x2="210" y2="296" stroke="#fbf0df" stroke-width="2.5" stroke-linecap="round" opacity="0.85" />
+    <line x1="184" y1="308" x2="202" y2="308" stroke="#ec4899" stroke-width="2.5" stroke-linecap="round" />
+
+    <!-- Scripture Label -->
+    <rect x="136" y="360" width="76" height="18" rx="6" fill="#f59e0b" fill-opacity="0.2" stroke="#f59e0b" stroke-width="1.5" />
+    <text x="174" y="373" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9" font-weight="bold" fill="#fbbf24" text-anchor="middle" letter-spacing="1">SCRIPTURE</text>
+
+    <!-- RIGHT SIDE: Song / Lyrics Waveform & Notes -->
+    <!-- Musical Clef / Note Indicator -->
+    <circle cx="342" cy="274" r="7" fill="#ec4899" filter="url(#pinkGlow)" />
+    <path d="M 349 274 L 349 252 Q 366 248 368 266" fill="none" stroke="#ec4899" stroke-width="2.5" stroke-linecap="round" />
+
+    <!-- Lyric Lower-Third Waveform Bars -->
+    <g transform="translate(290, 310)">
+      <rect x="0" y="-12" width="4" height="24" rx="2" fill="#f472b6" />
+      <rect x="10" y="-22" width="4" height="44" rx="2" fill="#ec4899" />
+      <rect x="20" y="-8" width="4" height="16" rx="2" fill="#fbf0df" />
+      <rect x="30" y="-28" width="4" height="56" rx="2" fill="#fbbf24" />
+      <rect x="40" y="-18" width="4" height="36" rx="2" fill="#f59e0b" />
+      <rect x="50" y="-26" width="4" height="52" rx="2" fill="#ec4899" />
+      <rect x="60" y="-14" width="4" height="28" rx="2" fill="#f472b6" />
+      <rect x="70" y="-6" width="4" height="12" rx="2" fill="#fbf0df" />
+      <rect x="80" y="-18" width="4" height="36" rx="2" fill="#ec4899" />
+      <rect x="90" y="-10" width="4" height="20" rx="2" fill="#f472b6" />
+    </g>
+
+    <!-- Song Label -->
+    <rect x="310" y="360" width="64" height="18" rx="6" fill="#ec4899" fill-opacity="0.2" stroke="#ec4899" stroke-width="1.5" />
+    <text x="342" y="373" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="9" font-weight="bold" fill="#f472b6" text-anchor="middle" letter-spacing="1">SONGS</text>
+
+    <!-- Live NDI Indicator Badge -->
+    <g transform="translate(228, 232)">
+      <rect x="0" y="0" width="56" height="16" rx="5" fill="#15803d" />
+      <circle cx="8" cy="8" r="3" fill="#4ade80" />
+      <text x="32" y="11" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="8" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="0.8">NDI LIVE</text>
+    </g>
+  </g>
+
+  <!-- Presentation Pedestal Stand -->
+  <path d="M 236 450 L 230 472 L 282 472 L 276 450 Z" fill="#27272a" stroke="#3f3f46" stroke-width="2" />
+  <rect x="200" y="472" width="112" height="8" rx="4" fill="url(#screenGrad)" stroke="#3f3f46" stroke-width="1.5" />
+</svg>
