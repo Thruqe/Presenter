@@ -97,6 +97,8 @@ async function handleFetch(req: Request, server: Bun.Server<unknown>): Promise<R
         response = new Response(Bun.file("public/song-output.html"));
     } else if (path === "/song-control") {
         response = new Response(Bun.file("public/song-control.html"));
+    } else if (path.startsWith("/fonts/")) {
+        response = new Response(Bun.file("public" + path));
     }
     // Scripture search endpoint
     else if (path === "/api/search") {
@@ -266,12 +268,12 @@ const server = Bun.serve({
     },
 });
 
-// Initialize NDI video streaming engine for Scripture and Song outputs
-initNdi();
-const ndiStatus = getNdiStatus();
-
 const activePort = server.port ?? PREFERRED_PORT;
 const lanIp = getLocalIp();
+
+// Initialize NDI video streaming engine for Scripture and Song outputs
+await initNdi(activePort);
+const ndiStatus = getNdiStatus();
 await logServerStart(activePort, lanIp, ndiStatus);
 
 process.on("SIGINT", () => {

@@ -55,8 +55,20 @@
 				transform: translateY(0);
 			}
 
+			@font-face {
+				font-family: "ChurchSerif";
+				src: url("/fonts/ChurchSerif-Bold.ttf") format("truetype");
+				font-weight: bold;
+				font-style: normal;
+			}
+			@font-face {
+				font-family: "ChurchSerif";
+				src: url("/fonts/ChurchSerif-Regular.ttf") format("truetype");
+				font-weight: normal;
+				font-style: normal;
+			}
 			#lyrics {
-				font-family: "Book Antiqua", "Palatino Linotype", "Georgia", "Times New Roman", serif;
+				font-family: "ChurchSerif", "Book Antiqua", "Palatino Linotype", "Georgia", "Liberation Serif", "Noto Serif", "Times New Roman", serif;
 				font-weight: bold;
 				color: white;
 				line-height: 1.38;
@@ -169,10 +181,34 @@
 					return;
 				}
 
+				const isNdi = location.search.includes("ndi=1");
+				if (isNdi) {
+					wrap.style.transition = "none";
+				}
+
 				ws.onmessage = (e) => {
 					try {
 						const data = JSON.parse(e.data);
 						if (data.channel !== "song") return;
+
+						if (isNdi) {
+							if (data.type === "clear") {
+								wrap.classList.remove("visible");
+								if (typeof window.onNdiReady === "function") {
+									window.onNdiReady("clear");
+								}
+								return;
+							}
+							body.className =
+								data.mode === "background" ? "bg-mode" : "lower-mode";
+							lyricsEl.textContent = data.text;
+							ensureFits();
+							wrap.classList.add("visible");
+							if (typeof window.onNdiReady === "function") {
+								window.onNdiReady("rendered");
+							}
+							return;
+						}
 
 						if (data.type === "clear") {
 							wrap.classList.remove("visible");

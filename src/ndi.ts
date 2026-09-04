@@ -1,6 +1,9 @@
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import { Resvg } from "@resvg/resvg-js";
-import { existsSync } from "fs";
+import { Transformer } from "@napi-rs/image";
+import { spawn, type ChildProcess } from "child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "fs";
+import { tmpdir } from "os";
 import path from "path";
 
 /**
@@ -10,6 +13,7 @@ export interface NdiStatus {
     available: boolean;
     version: string;
     sources: string[];
+    browserRenderer: boolean;
     error: string | null;
 }
 
@@ -24,15 +28,41 @@ let songSender: any = null;
 let isNdiAvailable = false;
 let ndiVersion = "";
 let ndiError: string | null = null;
+let isBrowserRendererActive = false;
 
-// Pixel buffers for both output channels (RGBA)
+// Active pixel buffers broadcast continuously to NDI (RGBA)
 const scriptureBuffer = new Uint8Array(FRAME_BUFFER_SIZE);
 const songBuffer = new Uint8Array(FRAME_BUFFER_SIZE);
+
+// Interpolation / transition buffers
+const scriptureFromBuffer = new Uint8Array(FRAME_BUFFER_SIZE);
+const scriptureTargetBuffer = new Uint8Array(FRAME_BUFFER_SIZE);
+const songFromBuffer = new Uint8Array(FRAME_BUFFER_SIZE);
+const songTargetBuffer = new Uint8Array(FRAME_BUFFER_SIZE);
+const emptyBuffer = new Uint8Array(FRAME_BUFFER_SIZE);
+
+// Transition state tracking
+let scriptureTransitioning = false;
+let scriptureTransitionStart = 0;
+let scriptureTransitionDuration = 350;
+
+let songTransitioning = false;
+let songTransitionStart = 0;
+let songTransitionDuration = 350;
 
 // Pre-allocated NDI video frame structures (72 bytes)
 let scriptureFrameStruct: Uint8Array | null = null;
 let songFrameStruct: Uint8Array | null = null;
 let streamInterval: ReturnType<typeof setInterval> | null = null;
+
+// Headless Chrome CDP variables
+let chromeProc: ChildProcess | null = null;
+let chromeUserDataDir: string | null = null;
+let browserWs: WebSocket | null = null;
+let scriptureSessionId: string | null = null;
+let songSessionId: string | null = null;
+let cdpMsgId = 1;
+const pendingCdp = new Map<number, (res: any) => void>();
 
 /**
  * Locate NDI dynamic shared library across supported operating systems.
@@ -86,6 +116,47 @@ function findNdiLibrary(): string | null {
 }
 
 /**
+ * Locate Chrome / Chromium executable on host machine.
+ */
+function findBrowserExecutable(): string | null {
+    const platform = process.platform;
+    const candidates: string[] = [];
+
+    if (platform === "linux") {
+        candidates.push(
+            "/usr/lib64/chromium-browser/chromium-browser",
+            "/usr/lib64/chromium-browser/headless_shell",
+            "/usr/bin/chromium-browser",
+            "/usr/bin/chromium",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/google-chrome"
+        );
+    } else if (platform === "win32") {
+        const pf = process.env.ProgramFiles || "C:\\Program Files";
+        const pf86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
+        const local = process.env.LOCALAPPDATA || "";
+        candidates.push(
+            path.join(pf, "Google/Chrome/Application/chrome.exe"),
+            path.join(pf86, "Google/Chrome/Application/chrome.exe"),
+            path.join(local, "Google/Chrome/Application/chrome.exe"),
+            path.join(pf, "Microsoft/Edge/Application/msedge.exe"),
+            path.join(pf86, "Microsoft/Edge/Application/msedge.exe")
+        );
+    } else if (platform === "darwin") {
+        candidates.push(
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+        );
+    }
+
+    for (const c of candidates) {
+        if (existsSync(c)) return c;
+    }
+    return null;
+}
+
+/**
  * Construct 72-byte NDIlib_video_frame_v2_t structure pointing to a pixel buffer.
  */
 function createFrameStruct(pixelBuffer: Uint8Array): Uint8Array {
@@ -121,7 +192,237 @@ function createNdiSender(name: string): any {
 }
 
 /**
- * XML escape helper for safe SVG generation.
+ * Smooth cubic easeInOut blending between two RGBA buffers.
+ */
+function blendBuffers(from: Uint8Array, to: Uint8Array, out: Uint8Array, progress: number): void {
+    const t = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+    const invT = 1 - t;
+    const len = out.length;
+
+    for (let i = 0; i < len; i += 4) {
+        const fromA = from[i + 3] ?? 0;
+        const toA = to[i + 3] ?? 0;
+
+        if (fromA === 0 && toA === 0) {
+            out[i] = 0;
+            out[i + 1] = 0;
+            out[i + 2] = 0;
+            out[i + 3] = 0;
+            continue;
+        }
+
+        out[i] = (((from[i] ?? 0) * invT + (to[i] ?? 0) * t)) | 0;
+        out[i + 1] = (((from[i + 1] ?? 0) * invT + (to[i + 1] ?? 0) * t)) | 0;
+        out[i + 2] = (((from[i + 2] ?? 0) * invT + (to[i + 2] ?? 0) * t)) | 0;
+        out[i + 3] = ((fromA * invT + toA * t)) | 0;
+    }
+}
+
+/**
+ * Start smooth alpha transition for scripture NDI feed.
+ */
+function startScriptureTransition(target: Uint8Array, duration = 350): void {
+    scriptureFromBuffer.set(scriptureBuffer);
+    if (target !== scriptureTargetBuffer) {
+        scriptureTargetBuffer.set(target);
+    }
+    scriptureTransitionDuration = duration;
+    scriptureTransitionStart = performance.now();
+    scriptureTransitioning = true;
+}
+
+/**
+ * Start smooth alpha transition for song NDI feed.
+ */
+function startSongTransition(target: Uint8Array, duration = 350): void {
+    songFromBuffer.set(songBuffer);
+    if (target !== songTargetBuffer) {
+        songTargetBuffer.set(target);
+    }
+    songTransitionDuration = duration;
+    songTransitionStart = performance.now();
+    songTransitioning = true;
+}
+
+/**
+ * Send Chrome DevTools Protocol (CDP) JSON-RPC command over WebSocket.
+ */
+function sendCdp(method: string, params: Record<string, unknown> = {}, sessionId?: string | null): Promise<any> {
+    return new Promise((resolve, reject) => {
+        if (!browserWs || browserWs.readyState !== WebSocket.OPEN) {
+            return reject(new Error("CDP WebSocket not connected"));
+        }
+        const id = cdpMsgId++;
+        const timeout = setTimeout(() => {
+            pendingCdp.delete(id);
+            reject(new Error(`CDP command ${method} timed out`));
+        }, 8000);
+
+        pendingCdp.set(id, (res) => {
+            clearTimeout(timeout);
+            resolve(res);
+        });
+
+        const msg: Record<string, unknown> = { id, method, params };
+        if (sessionId) {
+            msg.sessionId = sessionId;
+        }
+        browserWs.send(JSON.stringify(msg));
+    });
+}
+
+/**
+ * Capture rendered screenshot from Scripture page in headless Chrome.
+ */
+async function captureScriptureScreenshot(): Promise<void> {
+    if (!scriptureSessionId) return;
+    try {
+        const res = await sendCdp("Page.captureScreenshot", { format: "png", fromSurface: true }, scriptureSessionId);
+        if (res && res.data) {
+            const buf = Buffer.from(res.data, "base64");
+            const transformer = new Transformer(buf);
+            const raw = await transformer.rawPixels();
+            scriptureTargetBuffer.set(raw);
+            startScriptureTransition(scriptureTargetBuffer);
+        }
+    } catch (err) {
+        console.error("[NDI] Error capturing scripture screenshot:", err);
+    }
+}
+
+/**
+ * Capture rendered screenshot from Song page in headless Chrome.
+ */
+async function captureSongScreenshot(): Promise<void> {
+    if (!songSessionId) return;
+    try {
+        const res = await sendCdp("Page.captureScreenshot", { format: "png", fromSurface: true }, songSessionId);
+        if (res && res.data) {
+            const buf = Buffer.from(res.data, "base64");
+            const transformer = new Transformer(buf);
+            const raw = await transformer.rawPixels();
+            songTargetBuffer.set(raw);
+            startSongTransition(songTargetBuffer);
+        }
+    } catch (err) {
+        console.error("[NDI] Error capturing song screenshot:", err);
+    }
+}
+
+/**
+ * Initialize headless Chrome instance for exact browser output rendering.
+ */
+async function initHeadlessBrowser(port: number): Promise<boolean> {
+    const browserBin = findBrowserExecutable();
+    if (!browserBin) {
+        console.warn("[NDI] No Chrome/Chromium executable found; using high-fidelity vector fallback.");
+        return false;
+    }
+
+    try {
+        chromeUserDataDir = mkdtempSync(path.join(tmpdir(), "presenter-chrome-"));
+        chromeProc = spawn(browserBin, [
+            "--headless=new",
+            "--no-sandbox",
+            "--disable-gpu",
+            `--user-data-dir=${chromeUserDataDir}`,
+            "--remote-debugging-port=0",
+            "--default-background-color=00000000",
+            "--window-size=1920,1080",
+            "about:blank"
+        ], { stdio: "ignore" });
+
+        const devtoolsFile = path.join(chromeUserDataDir, "DevToolsActivePort");
+        let cdpPort = 0;
+        let wsPath = "";
+
+        for (let i = 0; i < 40; i++) {
+            await Bun.sleep(100);
+            try {
+                const content = readFileSync(devtoolsFile, "utf-8").trim().split("\n");
+                if (content.length >= 2) {
+                    cdpPort = parseInt(content[0] ?? "", 10);
+                    wsPath = content[1] ?? "";
+                    break;
+                }
+            } catch {}
+        }
+
+        if (!cdpPort || !wsPath) {
+            throw new Error("Could not detect Chrome DevTools port");
+        }
+
+        const browserWsUrl = `ws://127.0.0.1:${cdpPort}${wsPath}`;
+        browserWs = new WebSocket(browserWsUrl);
+        await new Promise<void>((resolve, reject) => {
+            if (!browserWs) return reject(new Error("No WebSocket"));
+            browserWs.onopen = () => resolve();
+            browserWs.onerror = (e) => reject(e);
+        });
+
+        browserWs.addEventListener("message", async (event) => {
+            try {
+                const data = JSON.parse(String(event.data));
+                if (typeof data.id === "number" && pendingCdp.has(data.id)) {
+                    const callback = pendingCdp.get(data.id);
+                    pendingCdp.delete(data.id);
+                    if (callback) callback(data.result);
+                }
+
+                if (data.method === "Runtime.bindingCalled" && data.params?.name === "onNdiReady") {
+                    const payload = data.params.payload;
+                    if (data.sessionId === scriptureSessionId) {
+                        if (payload === "clear") {
+                            startScriptureTransition(emptyBuffer, 300);
+                        } else {
+                            await captureScriptureScreenshot();
+                        }
+                    } else if (data.sessionId === songSessionId) {
+                        if (payload === "clear") {
+                            startSongTransition(emptyBuffer, 300);
+                        } else {
+                            await captureSongScreenshot();
+                        }
+                    }
+                }
+            } catch {}
+        });
+
+        // Set up Scripture target page
+        const scriptureTarget = await sendCdp("Target.createTarget", { url: "about:blank" });
+        const scriptureAttach = await sendCdp("Target.attachToTarget", { targetId: scriptureTarget.targetId, flatten: true });
+        scriptureSessionId = scriptureAttach.sessionId;
+
+        await sendCdp("Page.enable", {}, scriptureSessionId);
+        await sendCdp("Runtime.enable", {}, scriptureSessionId);
+        await sendCdp("Runtime.addBinding", { name: "onNdiReady" }, scriptureSessionId);
+        await sendCdp("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } }, scriptureSessionId);
+        await sendCdp("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false }, scriptureSessionId);
+        await sendCdp("Page.navigate", { url: `http://127.0.0.1:${port}/output?ndi=1` }, scriptureSessionId);
+
+        // Set up Song target page
+        const songTarget = await sendCdp("Target.createTarget", { url: "about:blank" });
+        const songAttach = await sendCdp("Target.attachToTarget", { targetId: songTarget.targetId, flatten: true });
+        songSessionId = songAttach.sessionId;
+
+        await sendCdp("Page.enable", {}, songSessionId);
+        await sendCdp("Runtime.enable", {}, songSessionId);
+        await sendCdp("Runtime.addBinding", { name: "onNdiReady" }, songSessionId);
+        await sendCdp("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } }, songSessionId);
+        await sendCdp("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false }, songSessionId);
+        await sendCdp("Page.navigate", { url: `http://127.0.0.1:${port}/song?ndi=1` }, songSessionId);
+
+        isBrowserRendererActive = true;
+        return true;
+    } catch (err) {
+        console.warn("[NDI] Failed to initialize headless browser; falling back to SVG vector renderer:", err);
+        isBrowserRendererActive = false;
+        return false;
+    }
+}
+
+/**
+ * Fallback XML escape helper for safe SVG generation.
  */
 function escapeXml(unsafe: string): string {
     return unsafe.replace(/[<>&'"]/g, (c) => {
@@ -137,9 +438,9 @@ function escapeXml(unsafe: string): string {
 }
 
 /**
- * Word wrap text into balanced lines for screen display.
+ * Fallback word wrap text into balanced lines for screen display.
  */
-function wrapText(text: string, maxCharsPerLine: number = 44): string[] {
+function wrapText(text: string, maxCharsPerLine = 44): string[] {
     const words = text.split(/\s+/);
     const lines: string[] = [];
     let currentLine = "";
@@ -156,9 +457,9 @@ function wrapText(text: string, maxCharsPerLine: number = 44): string[] {
 }
 
 /**
- * Render Scripture verse into 1080p RGBA pixel buffer.
+ * Vector SVG fallback rendering for Scripture verse.
  */
-function renderScriptureFrame(book: string, chapter: number, verse: number, text: string): void {
+function renderScriptureFallback(book: string, chapter: number, verse: number, text: string): void {
     const lines = wrapText(text, 46);
     const ref = `${book} ${chapter}:${verse}`;
 
@@ -180,10 +481,10 @@ function renderScriptureFrame(book: string, chapter: number, verse: number, text
           <feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="black" flood-opacity="0.8"/>
         </filter>
       </defs>
-      <text filter="url(#shadow)" x="960" font-family="'Book Antiqua', 'Palatino Linotype', 'Georgia', 'Times New Roman', serif" font-size="${fontSize}" font-weight="bold" fill="white" text-anchor="middle">
+      <text filter="url(#shadow)" x="960" font-family="'ChurchSerif', 'Book Antiqua', 'Palatino Linotype', 'Georgia', 'Liberation Serif', 'Noto Serif', serif" font-size="${fontSize}" font-weight="bold" fill="white" text-anchor="middle">
         ${tspans}
       </text>
-      <text filter="url(#shadow)" x="960" y="${refY}" font-family="'Book Antiqua', 'Palatino Linotype', 'Georgia', 'Times New Roman', serif" font-size="${refFontSize}" font-weight="bold" fill="#e8d9a0" text-anchor="middle">
+      <text filter="url(#shadow)" x="960" y="${refY}" font-family="'ChurchSerif', 'Book Antiqua', 'Palatino Linotype', 'Georgia', 'Liberation Serif', 'Noto Serif', serif" font-size="${refFontSize}" font-weight="bold" fill="#e8d9a0" text-anchor="middle">
         ${escapeXml(ref)}
       </text>
     </svg>`;
@@ -191,24 +492,24 @@ function renderScriptureFrame(book: string, chapter: number, verse: number, text
     try {
         const resvg = new Resvg(svg);
         const image = resvg.render();
-        scriptureBuffer.set(image.pixels);
+        scriptureTargetBuffer.set(image.pixels);
+        startScriptureTransition(scriptureTargetBuffer);
     } catch (err) {
-        console.error("[NDI] Error rendering scripture frame:", err);
+        console.error("[NDI] Error rendering fallback scripture frame:", err);
     }
 }
 
 /**
- * Render Song lyrics into 1080p RGBA pixel buffer.
+ * Vector SVG fallback rendering for Song lyrics.
  */
-function renderSongFrame(mode: string, text: string): void {
+function renderSongFallback(mode: string, text: string): void {
     const rawLines = text.split("\n").map((l) => l.trim()).filter(Boolean);
     if (!rawLines.length) {
-        songBuffer.fill(0);
+        startSongTransition(emptyBuffer, 300);
         return;
     }
 
     if (mode === "lower") {
-        // Lower-third mode: fixed to the lower portion with subtle backdrop & crisp shadow
         const fontSize = rawLines.length > 2 ? 38 : 46;
         const lineHeight = fontSize * 1.35;
         const totalHeight = rawLines.length * lineHeight + 40;
@@ -226,7 +527,7 @@ function renderSongFrame(mode: string, text: string): void {
             </filter>
           </defs>
           <rect x="160" y="${boxY}" width="1600" height="${totalHeight}" rx="12" fill="black" fill-opacity="0.45" />
-          <text filter="url(#shadow)" x="960" font-family="'Book Antiqua', 'Palatino Linotype', 'Georgia', 'Times New Roman', serif" font-size="${fontSize}" font-weight="bold" fill="white" text-anchor="middle">
+          <text filter="url(#shadow)" x="960" font-family="'ChurchSerif', 'Book Antiqua', 'Palatino Linotype', 'Georgia', 'Liberation Serif', 'Noto Serif', serif" font-size="${fontSize}" font-weight="bold" fill="white" text-anchor="middle">
             ${tspans}
           </text>
         </svg>`;
@@ -234,12 +535,12 @@ function renderSongFrame(mode: string, text: string): void {
         try {
             const resvg = new Resvg(svg);
             const image = resvg.render();
-            songBuffer.set(image.pixels);
+            songTargetBuffer.set(image.pixels);
+            startSongTransition(songTargetBuffer);
         } catch (err) {
-            console.error("[NDI] Error rendering song lower frame:", err);
+            console.error("[NDI] Error rendering fallback song lower frame:", err);
         }
     } else {
-        // Background mode: full screen centered text
         const fontSize = rawLines.length > 6 ? 36 : rawLines.length > 4 ? 44 : 54;
         const lineHeight = fontSize * 1.38;
         const totalHeight = rawLines.length * lineHeight;
@@ -255,7 +556,7 @@ function renderSongFrame(mode: string, text: string): void {
               <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="black" flood-opacity="0.95"/>
             </filter>
           </defs>
-          <text filter="url(#shadow)" x="960" font-family="'Book Antiqua', 'Palatino Linotype', 'Georgia', 'Times New Roman', serif" font-size="${fontSize}" font-weight="bold" fill="white" text-anchor="middle">
+          <text filter="url(#shadow)" x="960" font-family="'ChurchSerif', 'Book Antiqua', 'Palatino Linotype', 'Georgia', 'Liberation Serif', 'Noto Serif', serif" font-size="${fontSize}" font-weight="bold" fill="white" text-anchor="middle">
             ${tspans}
           </text>
         </svg>`;
@@ -263,20 +564,36 @@ function renderSongFrame(mode: string, text: string): void {
         try {
             const resvg = new Resvg(svg);
             const image = resvg.render();
-            songBuffer.set(image.pixels);
+            songTargetBuffer.set(image.pixels);
+            startSongTransition(songTargetBuffer);
         } catch (err) {
-            console.error("[NDI] Error rendering song background frame:", err);
+            console.error("[NDI] Error rendering fallback song background frame:", err);
         }
     }
 }
 
 /**
- * Handle incoming scripture WebSocket message and update NDI frame buffer.
+ * Handle incoming scripture WebSocket message.
  */
 export function onScriptureUpdate(data: Record<string, unknown>): void {
     if (!isNdiAvailable) return;
+
+    if (isBrowserRendererActive) {
+        // Headless browser receives the WebSocket message automatically and fires onNdiReady.
+        // As a safety fallback, if no binding arrived within 150ms, trigger screenshot capture.
+        setTimeout(() => {
+            if (data.type === "clear") {
+                startScriptureTransition(emptyBuffer, 300);
+            } else {
+                captureScriptureScreenshot();
+            }
+        }, 150);
+        return;
+    }
+
+    // Vector fallback path
     if (data.type === "clear") {
-        scriptureBuffer.fill(0);
+        startScriptureTransition(emptyBuffer, 300);
         return;
     }
     const book = typeof data.book === "string" ? data.book : "";
@@ -285,24 +602,38 @@ export function onScriptureUpdate(data: Record<string, unknown>): void {
     const text = typeof data.text === "string" ? data.text : "";
 
     if (text) {
-        renderScriptureFrame(book, chapter, verse, text);
+        renderScriptureFallback(book, chapter, verse, text);
     }
 }
 
 /**
- * Handle incoming song WebSocket message and update NDI frame buffer.
+ * Handle incoming song WebSocket message.
  */
 export function onSongUpdate(data: Record<string, unknown>): void {
     if (!isNdiAvailable) return;
+
+    if (isBrowserRendererActive) {
+        // Headless browser receives the WebSocket message automatically and fires onNdiReady.
+        setTimeout(() => {
+            if (data.type === "clear") {
+                startSongTransition(emptyBuffer, 300);
+            } else {
+                captureSongScreenshot();
+            }
+        }, 150);
+        return;
+    }
+
+    // Vector fallback path
     if (data.type === "clear") {
-        songBuffer.fill(0);
+        startSongTransition(emptyBuffer, 300);
         return;
     }
     const mode = typeof data.mode === "string" ? data.mode : "lower";
     const text = typeof data.text === "string" ? data.text : "";
 
     if (text) {
-        renderSongFrame(mode, text);
+        renderSongFallback(mode, text);
     }
 }
 
@@ -314,14 +645,15 @@ export function getNdiStatus(): NdiStatus {
         available: isNdiAvailable,
         version: ndiVersion,
         sources: isNdiAvailable ? ["Presenter - Scripture", "Presenter - Songs"] : [],
+        browserRenderer: isBrowserRendererActive,
         error: ndiError,
     };
 }
 
 /**
- * Initialize NDI runtime library, create video senders, and start streaming loop.
+ * Initialize NDI runtime library, create video senders, start browser renderer and streaming loop.
  */
-export function initNdi(): boolean {
+export async function initNdi(port = 8642): Promise<boolean> {
     const libPath = findNdiLibrary();
     if (!libPath) {
         ndiError = "NDI runtime library not found on system";
@@ -364,15 +696,42 @@ export function initNdi(): boolean {
         scriptureFrameStruct = createFrameStruct(scriptureBuffer);
         songFrameStruct = createFrameStruct(songBuffer);
 
-        // Continuous 30fps video stream loop
+        // Continuous 30fps video stream loop with smooth cubic easeInOut transition interpolation
         streamInterval = setInterval(() => {
             if (!ndiLib || !scriptureSender || !songSender || !scriptureFrameStruct || !songFrameStruct) return;
+
+            const now = performance.now();
+
+            if (scriptureTransitioning) {
+                const elapsed = now - scriptureTransitionStart;
+                const progress = Math.min(1.0, elapsed / scriptureTransitionDuration);
+                blendBuffers(scriptureFromBuffer, scriptureTargetBuffer, scriptureBuffer, progress);
+                if (progress >= 1.0) {
+                    scriptureTransitioning = false;
+                    scriptureBuffer.set(scriptureTargetBuffer);
+                }
+            }
+
+            if (songTransitioning) {
+                const elapsed = now - songTransitionStart;
+                const progress = Math.min(1.0, elapsed / songTransitionDuration);
+                blendBuffers(songFromBuffer, songTargetBuffer, songBuffer, progress);
+                if (progress >= 1.0) {
+                    songTransitioning = false;
+                    songBuffer.set(songTargetBuffer);
+                }
+            }
+
             ndiLib.symbols.NDIlib_send_send_video_v2(scriptureSender, ptr(scriptureFrameStruct));
             ndiLib.symbols.NDIlib_send_send_video_v2(songSender, ptr(songFrameStruct));
         }, 33);
 
         isNdiAvailable = true;
         ndiError = null;
+
+        // Initialize headless browser for 1:1 OBS Browser Source fidelity
+        await initHeadlessBrowser(port);
+
         return true;
     } catch (err: any) {
         ndiError = err?.message || String(err);
@@ -382,13 +741,35 @@ export function initNdi(): boolean {
 }
 
 /**
- * Gracefully terminate NDI senders and destroy NDI library on shutdown.
+ * Gracefully terminate NDI senders, headless browser, and destroy NDI library on shutdown.
  */
 export function shutdownNdi(): void {
     if (streamInterval) {
         clearInterval(streamInterval);
         streamInterval = null;
     }
+
+    if (browserWs) {
+        try {
+            browserWs.close();
+        } catch {}
+        browserWs = null;
+    }
+
+    if (chromeProc) {
+        try {
+            chromeProc.kill();
+        } catch {}
+        chromeProc = null;
+    }
+
+    if (chromeUserDataDir) {
+        try {
+            rmSync(chromeUserDataDir, { recursive: true, force: true });
+        } catch {}
+        chromeUserDataDir = null;
+    }
+
     if (ndiLib) {
         try {
             if (scriptureSender) ndiLib.symbols.NDIlib_send_destroy(scriptureSender);
