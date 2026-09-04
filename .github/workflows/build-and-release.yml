@@ -12,7 +12,7 @@ on:
         description: 'Publish release on GitHub'
         type: boolean
         required: false
-        default: false
+        default: true
 
 permissions:
   contents: write
@@ -182,17 +182,55 @@ jobs:
             dist/Presenter-macOS-x64.zip
 
   # =========================================================================
-  # Release: Automatically create GitHub Release on tag or dispatch
+  # Release: Automatically create Git tag and publish GitHub Release
   # =========================================================================
   release:
     name: Publish GitHub Release
     needs: [build-windows, build-linux, build-macos]
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.release == true)
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || github.event.inputs.release != false)
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun Runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Determine & Create Git Tag
+        id: versioning
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG_NAME="${{ github.ref_name }}"
+            RELEASE_NAME="Presenter ${TAG_NAME}"
+          else
+            PKG_VERSION=$(bun -e "console.log(require('./package.json').version)")
+            TARGET_TAG="v${PKG_VERSION}"
+
+            # Check if tag already exists in remote
+            if git ls-remote --tags origin "refs/tags/${TARGET_TAG}" | grep -q "${TARGET_TAG}"; then
+              TAG_NAME="v${PKG_VERSION}-build.${{ github.run_number }}"
+              RELEASE_NAME="Presenter v${PKG_VERSION} (Build ${{ github.run_number }})"
+            else
+              TAG_NAME="${TARGET_TAG}"
+              RELEASE_NAME="Presenter ${TARGET_TAG}"
+            fi
+
+            echo "Creating and pushing Git tag: ${TAG_NAME}..."
+            git tag -a "${TAG_NAME}" -m "Release ${TAG_NAME}"
+            git push origin "${TAG_NAME}"
+          fi
+
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "release_name=${RELEASE_NAME}" >> $GITHUB_OUTPUT
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -203,14 +241,19 @@ jobs:
       - name: Generate SHA256 Checksums
         run: |
           cd release-packages
-          sha256sum * > SHA256SUMS.txt
+          find . -maxdepth 1 -type f ! -name "SHA256SUMS.txt" -exec sha256sum {} + | sed 's| \./| |' > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.versioning.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.versioning.outputs.release_name }}
           files: release-packages/*
           generate_release_notes: true
-          name: Presenter ${{ github.ref_name }}
           draft: false
           prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
