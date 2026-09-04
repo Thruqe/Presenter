@@ -15,6 +15,7 @@ export interface NdiStatus {
     sources: string[];
     browserRenderer: boolean;
     error: string | null;
+    bufferStats?: { scriptureNonZero: number; songNonZero: number };
 }
 
 const WIDTH = 1920;
@@ -55,14 +56,17 @@ let scriptureFrameStruct: Uint8Array | null = null;
 let songFrameStruct: Uint8Array | null = null;
 let streamInterval: ReturnType<typeof setInterval> | null = null;
 
+interface CdpClient {
+    ws: WebSocket;
+    send(method: string, params?: Record<string, unknown>): Promise<any>;
+    close(): void;
+}
+
 // Headless Chrome CDP variables
 let chromeProc: ChildProcess | null = null;
 let chromeUserDataDir: string | null = null;
-let browserWs: WebSocket | null = null;
-let scriptureSessionId: string | null = null;
-let songSessionId: string | null = null;
-let cdpMsgId = 1;
-const pendingCdp = new Map<number, (res: any) => void>();
+let scriptureCdp: CdpClient | null = null;
+let songCdp: CdpClient | null = null;
 
 /**
  * Locate NDI dynamic shared library across supported operating systems.
@@ -186,7 +190,7 @@ function createNdiSender(name: string): any {
     const nameBuf = Buffer.from(name + "\0");
     view.setBigUint64(0, BigInt(ptr(nameBuf)), true);
     view.setBigUint64(8, 0n, true); // p_groups = null
-    view.setUint8(16, 1);           // clock_video = true
+    view.setUint8(16, 0);           // clock_video = false (non-blocking)
     view.setUint8(17, 0);           // clock_audio = false
     return ndiLib.symbols.NDIlib_send_create(ptr(settings));
 }
@@ -245,68 +249,116 @@ function startSongTransition(target: Uint8Array, duration = 350): void {
 }
 
 /**
- * Send Chrome DevTools Protocol (CDP) JSON-RPC command over WebSocket.
+ * Establish direct 1-to-1 CDP WebSocket client to a specific target page.
  */
-function sendCdp(method: string, params: Record<string, unknown> = {}, sessionId?: string | null): Promise<any> {
+function createCdpClient(name: string, url: string): Promise<CdpClient> {
     return new Promise((resolve, reject) => {
-        if (!browserWs || browserWs.readyState !== WebSocket.OPEN) {
-            return reject(new Error("CDP WebSocket not connected"));
+        let ws: WebSocket;
+        try {
+            ws = new WebSocket(url);
+        } catch (e) {
+            return reject(e);
         }
-        const id = cdpMsgId++;
-        const timeout = setTimeout(() => {
-            pendingCdp.delete(id);
-            reject(new Error(`CDP command ${method} timed out`));
-        }, 8000);
 
-        pendingCdp.set(id, (res) => {
-            clearTimeout(timeout);
-            resolve(res);
-        });
+        let msgId = 1;
+        const pending = new Map<number, { resolve: (val: any) => void; reject: (err: any) => void; timeout: ReturnType<typeof setTimeout> }>();
 
-        const msg: Record<string, unknown> = { id, method, params };
-        if (sessionId) {
-            msg.sessionId = sessionId;
-        }
-        browserWs.send(JSON.stringify(msg));
+        const connectTimeout = setTimeout(() => {
+            reject(new Error(`[NDI ${name}] WebSocket connection timed out to ${url}`));
+        }, 6000);
+
+        ws.onopen = () => {
+            clearTimeout(connectTimeout);
+            resolve({
+                ws,
+                send(method: string, params: Record<string, unknown> = {}): Promise<any> {
+                    return new Promise((res, rej) => {
+                        if (ws.readyState !== WebSocket.OPEN) {
+                            return rej(new Error(`[NDI ${name}] WebSocket not open (state=${ws.readyState})`));
+                        }
+                        const id = msgId++;
+                        const timeout = setTimeout(() => {
+                            pending.delete(id);
+                            rej(new Error(`[NDI ${name}] CDP ${method} timed out`));
+                        }, 6000);
+
+                        pending.set(id, { resolve: res, reject: rej, timeout });
+                        ws.send(JSON.stringify({ id, method, params }));
+                    });
+                },
+                close() {
+                    try {
+                        ws.close();
+                    } catch {}
+                }
+            });
+        };
+
+        ws.onerror = (err) => {
+            clearTimeout(connectTimeout);
+            reject(err);
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(String(event.data));
+                if (typeof data.id === "number" && pending.has(data.id)) {
+                    const entry = pending.get(data.id)!;
+                    pending.delete(data.id);
+                    clearTimeout(entry.timeout);
+                    if (data.error) {
+                        entry.reject(new Error(data.error.message || JSON.stringify(data.error)));
+                    } else {
+                        entry.resolve(data.result);
+                    }
+                }
+            } catch {}
+        };
     });
 }
 
 /**
  * Capture rendered screenshot from Scripture page in headless Chrome.
  */
-async function captureScriptureScreenshot(): Promise<void> {
-    if (!scriptureSessionId) return;
+async function captureScriptureScreenshot(): Promise<boolean> {
+    if (!scriptureCdp) return false;
     try {
-        const res = await sendCdp("Page.captureScreenshot", { format: "png", fromSurface: true }, scriptureSessionId);
+        await scriptureCdp.send("Page.bringToFront");
+        const res = await scriptureCdp.send("Page.captureScreenshot", { format: "png", fromSurface: true });
         if (res && res.data) {
             const buf = Buffer.from(res.data, "base64");
             const transformer = new Transformer(buf);
             const raw = await transformer.rawPixels();
             scriptureTargetBuffer.set(raw);
             startScriptureTransition(scriptureTargetBuffer);
+            return true;
         }
     } catch (err) {
         console.error("[NDI] Error capturing scripture screenshot:", err);
     }
+    return false;
 }
 
 /**
  * Capture rendered screenshot from Song page in headless Chrome.
  */
-async function captureSongScreenshot(): Promise<void> {
-    if (!songSessionId) return;
+async function captureSongScreenshot(): Promise<boolean> {
+    if (!songCdp) return false;
     try {
-        const res = await sendCdp("Page.captureScreenshot", { format: "png", fromSurface: true }, songSessionId);
+        await songCdp.send("Page.bringToFront");
+        const res = await songCdp.send("Page.captureScreenshot", { format: "png", fromSurface: true });
         if (res && res.data) {
             const buf = Buffer.from(res.data, "base64");
             const transformer = new Transformer(buf);
             const raw = await transformer.rawPixels();
             songTargetBuffer.set(raw);
             startSongTransition(songTargetBuffer);
+            return true;
         }
     } catch (err) {
         console.error("[NDI] Error capturing song screenshot:", err);
     }
+    return false;
 }
 
 /**
@@ -325,97 +377,68 @@ async function initHeadlessBrowser(port: number): Promise<boolean> {
             "--headless=new",
             "--no-sandbox",
             "--disable-gpu",
+            "--disable-dev-shm-usage",
+            "--run-all-compositor-stages-before-draw",
+            "--disable-background-timer-throttling",
+            "--disable-renderer-backgrounding",
+            "--disable-backgrounding-occluded-windows",
             `--user-data-dir=${chromeUserDataDir}`,
             "--remote-debugging-port=0",
-            "--default-background-color=00000000",
-            "--window-size=1920,1080",
             "about:blank"
         ], { stdio: "ignore" });
 
         const devtoolsFile = path.join(chromeUserDataDir, "DevToolsActivePort");
         let cdpPort = 0;
-        let wsPath = "";
 
-        for (let i = 0; i < 40; i++) {
+        for (let i = 0; i < 50; i++) {
             await Bun.sleep(100);
             try {
-                const content = readFileSync(devtoolsFile, "utf-8").trim().split("\n");
-                if (content.length >= 2) {
-                    cdpPort = parseInt(content[0] ?? "", 10);
-                    wsPath = content[1] ?? "";
-                    break;
-                }
-            } catch {}
-        }
-
-        if (!cdpPort || !wsPath) {
-            throw new Error("Could not detect Chrome DevTools port");
-        }
-
-        const browserWsUrl = `ws://127.0.0.1:${cdpPort}${wsPath}`;
-        browserWs = new WebSocket(browserWsUrl);
-        await new Promise<void>((resolve, reject) => {
-            if (!browserWs) return reject(new Error("No WebSocket"));
-            browserWs.onopen = () => resolve();
-            browserWs.onerror = (e) => reject(e);
-        });
-
-        browserWs.addEventListener("message", async (event) => {
-            try {
-                const data = JSON.parse(String(event.data));
-                if (typeof data.id === "number" && pendingCdp.has(data.id)) {
-                    const callback = pendingCdp.get(data.id);
-                    pendingCdp.delete(data.id);
-                    if (callback) callback(data.result);
-                }
-
-                if (data.method === "Runtime.bindingCalled" && data.params?.name === "onNdiReady") {
-                    const payload = data.params.payload;
-                    if (data.sessionId === scriptureSessionId) {
-                        if (payload === "clear") {
-                            startScriptureTransition(emptyBuffer, 300);
-                        } else {
-                            await captureScriptureScreenshot();
-                        }
-                    } else if (data.sessionId === songSessionId) {
-                        if (payload === "clear") {
-                            startSongTransition(emptyBuffer, 300);
-                        } else {
-                            await captureSongScreenshot();
+                if (existsSync(devtoolsFile)) {
+                    const content = readFileSync(devtoolsFile, "utf-8").trim().split("\n");
+                    if (content.length >= 2) {
+                        const p = parseInt(content[0] ?? "", 10);
+                        if (!isNaN(p) && p > 0) {
+                            cdpPort = p;
+                            break;
                         }
                     }
                 }
             } catch {}
-        });
+        }
 
-        // Set up Scripture target page
-        const scriptureTarget = await sendCdp("Target.createTarget", { url: "about:blank" });
-        const scriptureAttach = await sendCdp("Target.attachToTarget", { targetId: scriptureTarget.targetId, flatten: true });
-        scriptureSessionId = scriptureAttach.sessionId;
+        if (!cdpPort) {
+            throw new Error("Could not detect Chrome DevTools port");
+        }
 
-        await sendCdp("Page.enable", {}, scriptureSessionId);
-        await sendCdp("Runtime.enable", {}, scriptureSessionId);
-        await sendCdp("Runtime.addBinding", { name: "onNdiReady" }, scriptureSessionId);
-        await sendCdp("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } }, scriptureSessionId);
-        await sendCdp("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false }, scriptureSessionId);
-        await sendCdp("Page.navigate", { url: `http://127.0.0.1:${port}/output?ndi=1` }, scriptureSessionId);
+        // Create Scripture and Song output tabs via Chrome HTTP JSON API
+        const sTargetRes = await fetch(`http://127.0.0.1:${cdpPort}/json/new?http://127.0.0.1:${port}/output?ndi=1`, { method: "PUT" });
+        const sTargetData = await sTargetRes.json() as { webSocketDebuggerUrl?: string };
 
-        // Set up Song target page
-        const songTarget = await sendCdp("Target.createTarget", { url: "about:blank" });
-        const songAttach = await sendCdp("Target.attachToTarget", { targetId: songTarget.targetId, flatten: true });
-        songSessionId = songAttach.sessionId;
+        const songTargetRes = await fetch(`http://127.0.0.1:${cdpPort}/json/new?http://127.0.0.1:${port}/song?ndi=1`, { method: "PUT" });
+        const songTargetData = await songTargetRes.json() as { webSocketDebuggerUrl?: string };
 
-        await sendCdp("Page.enable", {}, songSessionId);
-        await sendCdp("Runtime.enable", {}, songSessionId);
-        await sendCdp("Runtime.addBinding", { name: "onNdiReady" }, songSessionId);
-        await sendCdp("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } }, songSessionId);
-        await sendCdp("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false }, songSessionId);
-        await sendCdp("Page.navigate", { url: `http://127.0.0.1:${port}/song?ndi=1` }, songSessionId);
+        if (!sTargetData?.webSocketDebuggerUrl || !songTargetData?.webSocketDebuggerUrl) {
+            throw new Error("Failed to retrieve WebSocket debugger URLs for pages");
+        }
+
+        scriptureCdp = await createCdpClient("Scripture", sTargetData.webSocketDebuggerUrl);
+        songCdp = await createCdpClient("Song", songTargetData.webSocketDebuggerUrl);
+
+        // Configure transparent background override and standard 1080p metrics
+        await Promise.all([
+            scriptureCdp.send("Page.enable"),
+            scriptureCdp.send("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } }),
+            scriptureCdp.send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false }),
+            songCdp.send("Page.enable"),
+            songCdp.send("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } }),
+            songCdp.send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false }),
+        ]);
 
         isBrowserRendererActive = true;
+        console.log(`[NDI] Headless browser renderer initialized (pages connected on port ${cdpPort})`);
         return true;
     } catch (err) {
-        console.warn("[NDI] Failed to initialize headless browser; falling back to SVG vector renderer:", err);
+        console.error("[NDI] Failed to initialize headless browser; falling back to SVG vector renderer:", err);
         isBrowserRendererActive = false;
         return false;
     }
@@ -578,32 +601,30 @@ function renderSongFallback(mode: string, text: string): void {
 export function onScriptureUpdate(data: Record<string, unknown>): void {
     if (!isNdiAvailable) return;
 
-    if (isBrowserRendererActive) {
-        // Headless browser receives the WebSocket message automatically and fires onNdiReady.
-        // As a safety fallback, if no binding arrived within 150ms, trigger screenshot capture.
-        setTimeout(() => {
-            if (data.type === "clear") {
-                startScriptureTransition(emptyBuffer, 300);
-            } else {
-                captureScriptureScreenshot();
-            }
-        }, 150);
-        return;
-    }
-
-    // Vector fallback path
     if (data.type === "clear") {
         startScriptureTransition(emptyBuffer, 300);
         return;
     }
+
     const book = typeof data.book === "string" ? data.book : "";
     const chapter = typeof data.chapter === "number" ? data.chapter : 0;
     const verse = typeof data.verse === "number" ? data.verse : 0;
     const text = typeof data.text === "string" ? data.text : "";
 
-    if (text) {
-        renderScriptureFallback(book, chapter, verse, text);
+    if (!text) return;
+
+    if (isBrowserRendererActive) {
+        setTimeout(async () => {
+            const ok = await captureScriptureScreenshot();
+            if (!ok) {
+                renderScriptureFallback(book, chapter, verse, text);
+            }
+        }, 100);
+        return;
     }
+
+    // Vector fallback path
+    renderScriptureFallback(book, chapter, verse, text);
 }
 
 /**
@@ -612,29 +633,27 @@ export function onScriptureUpdate(data: Record<string, unknown>): void {
 export function onSongUpdate(data: Record<string, unknown>): void {
     if (!isNdiAvailable) return;
 
-    if (isBrowserRendererActive) {
-        // Headless browser receives the WebSocket message automatically and fires onNdiReady.
-        setTimeout(() => {
-            if (data.type === "clear") {
-                startSongTransition(emptyBuffer, 300);
-            } else {
-                captureSongScreenshot();
-            }
-        }, 150);
-        return;
-    }
-
-    // Vector fallback path
     if (data.type === "clear") {
         startSongTransition(emptyBuffer, 300);
         return;
     }
+
     const mode = typeof data.mode === "string" ? data.mode : "lower";
     const text = typeof data.text === "string" ? data.text : "";
 
-    if (text) {
-        renderSongFallback(mode, text);
+    if (!text) return;
+
+    if (isBrowserRendererActive) {
+        setTimeout(async () => {
+            const ok = await captureSongScreenshot();
+            if (!ok) {
+                renderSongFallback(mode, text);
+            }
+        }, 100);
+        return;
     }
+
+    renderSongFallback(mode, text);
 }
 
 /**
@@ -647,7 +666,23 @@ export function getNdiStatus(): NdiStatus {
         sources: isNdiAvailable ? ["Presenter - Scripture", "Presenter - Songs"] : [],
         browserRenderer: isBrowserRendererActive,
         error: ndiError,
+        bufferStats: getBufferStats(),
     };
+}
+
+/**
+ * Return non-zero alpha pixel counts in active NDI frame buffers (for diagnostics and testing).
+ */
+export function getBufferStats(): { scriptureNonZero: number; songNonZero: number } {
+    let sCount = 0;
+    let songCount = 0;
+    for (let i = 3; i < scriptureBuffer.length; i += 4) {
+        if (scriptureBuffer[i]! > 0) sCount++;
+    }
+    for (let i = 3; i < songBuffer.length; i += 4) {
+        if (songBuffer[i]! > 0) songCount++;
+    }
+    return { scriptureNonZero: sCount, songNonZero: songCount };
 }
 
 /**
@@ -749,11 +784,14 @@ export function shutdownNdi(): void {
         streamInterval = null;
     }
 
-    if (browserWs) {
-        try {
-            browserWs.close();
-        } catch {}
-        browserWs = null;
+    if (scriptureCdp) {
+        scriptureCdp.close();
+        scriptureCdp = null;
+    }
+
+    if (songCdp) {
+        songCdp.close();
+        songCdp = null;
     }
 
     if (chromeProc) {

@@ -47,7 +47,7 @@ export async function logServerStart(
     console.log(`${colorize("Song Output: ", DIM)} ${colorize(`${baseUrl}/song`, MAGENTA)}`);
 
     if (ndiInfo?.available) {
-        console.log(`${colorize("NDI Video:   ", BOLD)} ${colorize("Active (30fps RGBA)", GREEN)}`);
+        console.log(`${colorize("NDI Video:   ", BOLD)} ${colorize("Active (30fps RGBA transparent overlay)", GREEN)}`);
         for (const src of ndiInfo.sources) {
             console.log(`${colorize("  • NDI Feed:", DIM)} ${colorize(src, CYAN)}`);
         }
