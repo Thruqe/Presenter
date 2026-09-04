@@ -1,7 +1,7 @@
 import { dlopen, FFIType, ptr } from "bun:ffi";
 import { Resvg } from "@resvg/resvg-js";
 import { Transformer } from "@napi-rs/image";
-import { spawn, type ChildProcess } from "child_process";
+import { spawn, spawnSync, type ChildProcess } from "child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import path from "path";
@@ -128,13 +128,24 @@ function findBrowserExecutable(): string | null {
 
     if (platform === "linux") {
         candidates.push(
-            "/usr/lib64/chromium-browser/chromium-browser",
-            "/usr/lib64/chromium-browser/headless_shell",
+            "/usr/sbin/chromium-browser",
             "/usr/bin/chromium-browser",
             "/usr/bin/chromium",
             "/usr/bin/google-chrome-stable",
-            "/usr/bin/google-chrome"
+            "/usr/bin/google-chrome",
+            "/snap/bin/chromium",
+            "/var/lib/flatpak/exports/bin/org.chromium.Chromium",
+            "/usr/lib64/chromium-browser/chromium-browser",
+            "/usr/lib64/chromium-browser/headless_shell"
         );
+        for (const bin of ["chromium-browser", "chromium", "google-chrome-stable", "google-chrome"]) {
+            try {
+                const res = spawnSync("which", [bin], { encoding: "utf-8" });
+                if (res.status === 0 && res.stdout.trim()) {
+                    candidates.push(res.stdout.trim());
+                }
+            } catch {}
+        }
     } else if (platform === "win32") {
         const pf = process.env.ProgramFiles || "C:\\Program Files";
         const pf86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
@@ -144,8 +155,18 @@ function findBrowserExecutable(): string | null {
             path.join(pf86, "Google/Chrome/Application/chrome.exe"),
             path.join(local, "Google/Chrome/Application/chrome.exe"),
             path.join(pf, "Microsoft/Edge/Application/msedge.exe"),
-            path.join(pf86, "Microsoft/Edge/Application/msedge.exe")
+            path.join(pf86, "Microsoft/Edge/Application/msedge.exe"),
+            path.join(local, "Microsoft/Edge/Application/msedge.exe")
         );
+        for (const bin of ["chrome.exe", "msedge.exe", "chromium.exe"]) {
+            try {
+                const res = spawnSync("where", [bin], { encoding: "utf-8" });
+                if (res.status === 0 && res.stdout.trim()) {
+                    const first = res.stdout.trim().split(/\r?\n/)[0];
+                    if (first) candidates.push(first);
+                }
+            } catch {}
+        }
     } else if (platform === "darwin") {
         candidates.push(
             "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
@@ -533,23 +554,31 @@ function renderSongFallback(mode: string, text: string): void {
     }
 
     if (mode === "lower") {
-        const fontSize = rawLines.length > 2 ? 38 : 46;
-        const lineHeight = fontSize * 1.35;
-        const totalHeight = rawLines.length * lineHeight + 40;
-        const boxY = HEIGHT - totalHeight - 60;
-        const startY = boxY + 28 + fontSize * 0.8;
+        // In lower-third mode: collapse all newlines into single spaces (matching HTML white-space: normal),
+        // let text flow on a single straight line, and only word wrap when hitting the screen edge margins.
+        const continuous = text.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+        if (!continuous) {
+            startSongTransition(emptyBuffer, 300);
+            return;
+        }
 
-        const tspans = rawLines
+        const lines = wrapText(continuous, 56);
+        const fontSize = lines.length > 3 ? 42 : lines.length > 2 ? 48 : 58;
+        const lineHeight = fontSize * 1.38;
+        const bottomY = HEIGHT - 52;
+        const startY = bottomY - (lines.length - 1) * lineHeight;
+
+        const tspans = lines
             .map((l, i) => `<tspan x="960" y="${startY + i * lineHeight}">${escapeXml(l)}</tspan>`)
             .join("");
 
         const svg = `<svg width="1920" height="1080" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-              <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="black" flood-opacity="0.95"/>
+              <feDropShadow dx="0" dy="3" stdDeviation="8" flood-color="black" flood-opacity="0.95"/>
+              <feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="black" flood-opacity="0.8"/>
             </filter>
           </defs>
-          <rect x="160" y="${boxY}" width="1600" height="${totalHeight}" rx="12" fill="black" fill-opacity="0.45" />
           <text filter="url(#shadow)" x="960" font-family="'ChurchSerif', 'Book Antiqua', 'Palatino Linotype', 'Georgia', 'Liberation Serif', 'Noto Serif', serif" font-size="${fontSize}" font-weight="bold" fill="white" text-anchor="middle">
             ${tspans}
           </text>
