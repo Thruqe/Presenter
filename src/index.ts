@@ -21,7 +21,10 @@ import {
     handleWsOpen,
     handleWsClose,
     handleWsMessage,
+    getLastVerse,
+    getLastSong,
 } from "./ws";
+import { initNdi, getNdiStatus, shutdownNdi } from "./ndi";
 import type { CreateSongInput, BookSearchResult } from "./types";
 
 const PREFERRED_PORT = Number(process.env.PORT) || 8642;
@@ -178,6 +181,23 @@ async function handleFetch(req: Request, server: Bun.Server<unknown>): Promise<R
             response = new Response("Method not allowed", { status: 405 });
         }
     }
+    // NDI streaming status endpoint
+    else if (path === "/api/ndi/status") {
+        response = Response.json(getNdiStatus());
+    }
+    // Live output status endpoint for both channels
+    else if (path === "/api/output/status") {
+        const lastV = getLastVerse();
+        const lastS = getLastSong();
+        let scriptureData = null;
+        let songData = null;
+        try { if (lastV) scriptureData = JSON.parse(lastV); } catch {}
+        try { if (lastS) songData = JSON.parse(lastS); } catch {}
+        response = Response.json({
+            scripture: scriptureData,
+            song: songData,
+        });
+    }
     // Individual song endpoint matching /api/songs/:id
     else {
         const songMatch = path.match(/^\/api\/songs\/(\d+)$/);
@@ -246,10 +266,23 @@ const server = Bun.serve({
     },
 });
 
+// Initialize NDI video streaming engine for Scripture and Song outputs
+initNdi();
+const ndiStatus = getNdiStatus();
+
 const activePort = server.port ?? PREFERRED_PORT;
 const lanIp = getLocalIp();
-await logServerStart(activePort, lanIp);
+await logServerStart(activePort, lanIp, ndiStatus);
 
+process.on("SIGINT", () => {
+    shutdownNdi();
+    process.exit(0);
+});
+
+process.on("SIGTERM", () => {
+    shutdownNdi();
+    process.exit(0);
+});
 
 declare const self: Worker;
 if (typeof postMessage === "function") {

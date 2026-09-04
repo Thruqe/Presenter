@@ -69,12 +69,12 @@
 			}
 
 			.shell {
-				max-width: 780px;
+				max-width: 1200px;
 				margin: 0 auto;
-				padding: 40px 28px;
+				padding: 36px 28px;
 			}
 
-			/* ── Tag row (now holds the theme toggle too) ───────── */
+			/* ── Tag row & Navigation Switcher ─────────────────── */
 			.tag-row {
 				display: flex;
 				align-items: center;
@@ -82,12 +82,14 @@
 				margin-bottom: 24px;
 				padding-bottom: 18px;
 				border-bottom: 1px solid var(--border);
+				gap: 16px;
 			}
 
 			.tag-left {
 				display: flex;
 				align-items: center;
-				gap: 10px;
+				gap: 14px;
+				flex-wrap: wrap;
 			}
 
 			.tag-new {
@@ -96,13 +98,250 @@
 				font-size: 11px;
 				font-weight: 800;
 				letter-spacing: 0.04em;
-				padding: 3px 8px;
+				padding: 4px 8px;
 			}
-			.tag-label {
+
+			.nav-switcher {
+				display: inline-flex;
+				align-items: center;
+				background: var(--surface-alt);
+				border: 1px solid var(--border);
+				padding: 2px;
+				gap: 2px;
+			}
+
+			.nav-link {
+				display: inline-flex;
+				align-items: center;
+				gap: 7px;
+				padding: 6px 12px;
 				font-size: 12px;
 				font-weight: 700;
-				letter-spacing: 0.06em;
+				letter-spacing: 0.02em;
 				color: var(--text-muted);
+				text-decoration: none;
+				transition:
+					background 0.12s ease,
+					color 0.12s ease;
+			}
+			.nav-link:hover {
+				color: var(--text);
+				background: var(--surface);
+			}
+			.nav-link.active {
+				background: var(--text);
+				color: var(--bg);
+			}
+			.switch-shortcut {
+				font-size: 9px;
+				opacity: 0.7;
+				padding: 1px 4px;
+				border: 1px solid currentColor;
+			}
+
+			/* ── Two-Column Layout ──────────────────────────────── */
+			.control-grid {
+				display: grid;
+				grid-template-columns: 1fr;
+				gap: 24px;
+			}
+			@media (min-width: 960px) {
+				.control-grid {
+					grid-template-columns: 1fr 440px;
+					align-items: start;
+				}
+			}
+
+			.search-panel {
+				min-width: 0;
+			}
+
+			/* ── Monitors Panel ─────────────────────────────────── */
+			.monitors-panel {
+				display: flex;
+				flex-direction: column;
+				gap: 16px;
+			}
+
+			.monitor-card {
+				background: var(--surface);
+				border: 1px solid var(--border);
+				padding: 14px;
+				display: flex;
+				flex-direction: column;
+				gap: 10px;
+				transition:
+					background 0.2s ease,
+					border-color 0.2s ease;
+			}
+
+			.monitor-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 8px;
+				font-size: 11px;
+				font-weight: 800;
+				letter-spacing: 0.05em;
+				color: var(--text-muted);
+				text-transform: uppercase;
+			}
+
+			.monitor-title {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				min-width: 0;
+			}
+
+			.badge-preview {
+				background: var(--surface-alt);
+				color: var(--text-muted);
+				border: 1px solid var(--border-soft);
+				padding: 2px 6px;
+				font-size: 10px;
+				font-weight: 800;
+			}
+
+			.badge-live {
+				background: var(--accent);
+				color: var(--accent-contrast);
+				padding: 2px 7px;
+				font-size: 10px;
+				font-weight: 800;
+				display: inline-flex;
+				align-items: center;
+				gap: 5px;
+			}
+
+			.pulse-dot {
+				width: 6px;
+				height: 6px;
+				border-radius: 50%;
+				background: var(--accent-contrast);
+				box-shadow: 0 0 6px var(--accent-contrast);
+				animation: pulse 1.5s infinite;
+			}
+
+			@keyframes pulse {
+				0% { opacity: 1; transform: scale(1); }
+				50% { opacity: 0.35; transform: scale(0.8); }
+				100% { opacity: 1; transform: scale(1); }
+			}
+
+			.monitor-actions {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				flex-shrink: 0;
+			}
+
+			.monitor-btn {
+				font-family: inherit;
+				padding: 4px 9px;
+				font-size: 11px;
+				font-weight: 700;
+				border: 1px solid var(--border);
+				background: var(--bg);
+				color: var(--text);
+				cursor: pointer;
+				text-decoration: none;
+				transition:
+					background 0.12s ease,
+					color 0.12s ease,
+					border-color 0.12s ease;
+			}
+			.monitor-btn:hover {
+				background: var(--surface-alt);
+			}
+			.monitor-btn.btn-send {
+				background: var(--accent);
+				color: var(--accent-contrast);
+				border-color: var(--accent);
+			}
+			.monitor-btn.btn-send:hover {
+				opacity: 0.9;
+			}
+			.monitor-btn.btn-clear:hover {
+				background: var(--danger);
+				color: #fff;
+				border-color: var(--danger);
+			}
+
+			.screen-16-9 {
+				position: relative;
+				width: 100%;
+				aspect-ratio: 16 / 9;
+				background: #000000;
+				border: 1px solid var(--border-soft);
+				overflow: hidden;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				padding: 16px;
+				text-align: center;
+				box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.75);
+			}
+
+			.screen-content {
+				width: 92%;
+				transition: opacity 0.25s ease, transform 0.25s ease;
+			}
+
+			.screen-text {
+				font-family: "Book Antiqua", "Palatino Linotype", "Georgia", "Times New Roman", serif;
+				font-weight: bold;
+				color: #ffffff;
+				line-height: 1.35;
+				font-size: clamp(11px, 2.2vw, 15px);
+				text-shadow:
+					0 2px 10px rgba(0, 0, 0, 0.95),
+					0 0 4px rgba(0, 0, 0, 0.85);
+				word-break: normal;
+				overflow-wrap: break-word;
+			}
+
+			.screen-ref {
+				margin-top: 8px;
+				font-family: "Book Antiqua", "Palatino Linotype", "Georgia", "Times New Roman", serif;
+				font-weight: bold;
+				color: #e8d9a0;
+				font-size: clamp(10px, 1.6vw, 12px);
+				text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+			}
+
+			.screen-placeholder {
+				color: #666666;
+				font-size: 11px;
+				font-weight: 600;
+				letter-spacing: 0.02em;
+			}
+
+			.monitor-status-bar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 9px 12px;
+				background: var(--surface-alt);
+				border: 1px solid var(--border);
+				font-size: 11px;
+				color: var(--text-muted);
+			}
+			.ndi-indicator {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				font-weight: 700;
+			}
+			.ndi-dot {
+				width: 7px;
+				height: 7px;
+				border-radius: 50%;
+				background: #00d26a;
+			}
+			.ndi-dot.off {
+				background: var(--text-faint);
 			}
 
 			.theme-toggle {
@@ -387,9 +626,18 @@
 			<div class="tag-row">
 				<div class="tag-left">
 					<span class="tag-new">LIVE</span>
-					<span class="tag-label mono">CONTROL PANEL</span>
+					<nav class="nav-switcher">
+						<a href="/" class="nav-link active" title="Current: Scripture Control">
+							<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+							<span>Scripture</span>
+						</a>
+						<a href="/song-control" class="nav-link" title="Switch to Song Control (Alt+S)">
+							<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+							<span>Song Control</span>
+							<span class="switch-shortcut mono">Alt+S</span>
+						</a>
+					</nav>
 				</div>
-				<!-- Replace the theme-toggle button markup with this -->
 				<button
 					class="theme-toggle"
 					id="themeToggle"
@@ -434,38 +682,102 @@
 				</button>
 			</div>
 
-			<input
-				id="search"
-				placeholder="John 3:16, a phrase, or keywords…"
-				autocomplete="off"
-			/>
+			<div class="control-grid">
+				<div class="search-panel">
+					<input
+						id="search"
+						placeholder="John 3:16, a phrase, or keywords…"
+						autocomplete="off"
+					/>
 
-			<div id="status-bar">
-				<div class="status-left">
-					<span class="live-dot" id="liveDot"></span>
-					<span>Live: <b id="current-book-name">Nothing selected</b></span>
+					<div id="status-bar">
+						<div class="status-left">
+							<span class="live-dot" id="liveDot"></span>
+							<span>Live: <b id="current-book-name">Nothing selected</b></span>
+						</div>
+					</div>
+
+					<div id="results">
+						<div class="empty-state" id="emptyState">
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.5"
+							>
+								<circle cx="11" cy="11" r="7" />
+								<path d="M21 21l-4.3-4.3" />
+							</svg>
+							<span>Start typing to search scripture</span>
+						</div>
+					</div>
+
+					<div id="hints">
+						<span><kbd>↑</kbd><kbd>↓</kbd>Preview</span>
+						<span><kbd>Enter</kbd>Send to output</span>
+						<span><kbd>Esc</kbd>Clear output</span>
+						<span><kbd>Alt+S</kbd>Songs</span>
+					</div>
 				</div>
-			</div>
 
-			<div id="results">
-				<div class="empty-state" id="emptyState">
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-					>
-						<circle cx="11" cy="11" r="7" />
-						<path d="M21 21l-4.3-4.3" />
-					</svg>
-					<span>Start typing to search scripture</span>
+				<div class="monitors-panel">
+					<!-- STAGE PREVIEW CARD -->
+					<div class="monitor-card">
+						<div class="monitor-header">
+							<div class="monitor-title">
+								<span class="badge-preview mono">STAGE PREVIEW</span>
+								<span id="previewRefBadge" class="mono" style="color:var(--text); font-weight:700;">No verse staged</span>
+							</div>
+							<div class="monitor-actions">
+								<button type="button" class="monitor-btn btn-send" id="pushLiveBtn" title="Send staged verse to live output screen (Enter)">
+									Push Live ↵
+								</button>
+							</div>
+						</div>
+						<div class="screen-16-9" id="previewScreen">
+							<div class="screen-content" id="previewScreenContent" style="display: none;">
+								<div class="screen-text" id="previewText"></div>
+								<div class="screen-ref" id="previewRef"></div>
+							</div>
+							<div class="screen-placeholder" id="previewPlaceholder">Select or navigate to a verse to preview</div>
+						</div>
+					</div>
+
+					<!-- LIVE OUTPUT CARD -->
+					<div class="monitor-card">
+						<div class="monitor-header">
+							<div class="monitor-title">
+								<span class="badge-live mono"><span class="pulse-dot"></span> LIVE SCRIPTURE OUTPUT</span>
+							</div>
+							<div class="monitor-actions">
+								<button type="button" class="monitor-btn btn-clear" id="clearOutputBtn" title="Clear Scripture Output (Esc)">
+									✕ Clear
+								</button>
+								<a href="/output" target="_blank" class="monitor-btn" title="Open output display screen in new window">
+									↗ Screen
+								</a>
+							</div>
+						</div>
+						<div class="screen-16-9" id="liveScreen">
+							<div class="screen-content" id="liveScreenContent" style="display: none;">
+								<div class="screen-text" id="liveText"></div>
+								<div class="screen-ref" id="liveRef"></div>
+							</div>
+							<div class="screen-placeholder" id="livePlaceholder">Scripture Output is Clear</div>
+						</div>
+					</div>
+
+					<!-- NDI & OTHER CHANNEL STATUS BAR -->
+					<div class="monitor-status-bar">
+						<div class="ndi-indicator">
+							<span class="ndi-dot off" id="ndiDot"></span>
+							<span id="ndiText" class="mono">NDI: Checking...</span>
+						</div>
+						<div class="other-channel-status" id="otherChannelStatus">
+							<span class="mono" id="songStatusPill">Songs: Clear</span>
+						</div>
+					</div>
 				</div>
-			</div>
-
-			<div id="hints">
-				<span><kbd>↑</kbd><kbd>↓</kbd>Navigate</span>
-				<span><kbd>Enter</kbd>Send to output</span>
-				<span><kbd>Right-click</kbd>Copy verse</span>
 			</div>
 		</div>
 
@@ -516,7 +828,7 @@
 				applyTheme();
 			});
 
-			/* ── App logic (unchanged behavior) ─────────────────── */
+			/* ── App logic ───────────────────────────────────────── */
 			const searchEl = document.getElementById("search");
 			const resultsEl = document.getElementById("results");
 			const emptyStateEl = document.getElementById("emptyState");
@@ -525,14 +837,77 @@
 			const contextMenu = document.getElementById("contextMenu");
 			const toast = document.getElementById("toast");
 
+			const previewScreenContent = document.getElementById("previewScreenContent");
+			const previewText = document.getElementById("previewText");
+			const previewRef = document.getElementById("previewRef");
+			const previewPlaceholder = document.getElementById("previewPlaceholder");
+			const previewRefBadge = document.getElementById("previewRefBadge");
+			const pushLiveBtn = document.getElementById("pushLiveBtn");
+
+			const liveScreenContent = document.getElementById("liveScreenContent");
+			const liveText = document.getElementById("liveText");
+			const liveRef = document.getElementById("liveRef");
+			const livePlaceholder = document.getElementById("livePlaceholder");
+			const clearOutputBtn = document.getElementById("clearOutputBtn");
+
+			const ndiDot = document.getElementById("ndiDot");
+			const ndiText = document.getElementById("ndiText");
+			const songStatusPill = document.getElementById("songStatusPill");
+
 			let ws = null;
 			let reconnectTimer = null;
 			const messageQueue = [];
 
 			let currentRef = null;
+			let stagedVerse = null;
 			let focusedIndex = -1;
 			let debounce;
 			let contextMenuRow = null;
+
+			function updatePreview(row) {
+				if (row && row.text) {
+					stagedVerse = row;
+					const ref = `${row.book} ${row.chapter}:${row.verse}`;
+					previewRefBadge.textContent = ref;
+					previewText.textContent = row.text;
+					previewRef.textContent = ref;
+					previewScreenContent.style.display = "block";
+					previewPlaceholder.style.display = "none";
+				} else {
+					stagedVerse = null;
+					previewRefBadge.textContent = "No verse staged";
+					previewScreenContent.style.display = "none";
+					previewPlaceholder.style.display = "block";
+				}
+			}
+
+			function updateLiveScreen(data) {
+				if (data && data.text && data.book && data.chapter && data.verse) {
+					currentRef = `${data.book} ${data.chapter}:${data.verse}`;
+					currentBookEl.textContent = currentRef;
+					liveDot.classList.add("on");
+					liveText.textContent = data.text;
+					liveRef.textContent = currentRef;
+					liveScreenContent.style.display = "block";
+					livePlaceholder.style.display = "none";
+
+					const items = resultsEl.querySelectorAll(".result");
+					items.forEach((el) => el.classList.remove("active"));
+					const clicked = [...items].find((el) =>
+						el.textContent.startsWith(currentRef),
+					);
+					if (clicked) clicked.classList.add("active");
+				} else {
+					currentRef = null;
+					currentBookEl.textContent = "Nothing selected";
+					liveDot.classList.remove("on");
+					liveScreenContent.style.display = "none";
+					livePlaceholder.style.display = "block";
+					resultsEl
+						.querySelectorAll(".result")
+						.forEach((el) => el.classList.remove("active"));
+				}
+			}
 
 			function getWsUrl() {
 				const protocol = location.protocol === "https:" ? "wss:" : "ws:";
@@ -567,28 +942,18 @@
 				ws.onmessage = (e) => {
 					try {
 						const data = JSON.parse(e.data);
-						if (data.channel !== "scripture") return;
-
-						if (data.type === "clear") {
-							currentRef = null;
-							currentBookEl.textContent = "Nothing selected";
-							liveDot.classList.remove("on");
-							resultsEl
-								.querySelectorAll(".result")
-								.forEach((el) => el.classList.remove("active"));
-							return;
-						}
-
-						if (data.book && data.chapter && data.verse) {
-							currentRef = `${data.book} ${data.chapter}:${data.verse}`;
-							currentBookEl.textContent = currentRef;
-							liveDot.classList.add("on");
-							const items = resultsEl.querySelectorAll(".result");
-							items.forEach((el) => el.classList.remove("active"));
-							const clicked = [...items].find((el) =>
-								el.textContent.startsWith(currentRef),
-							);
-							if (clicked) clicked.classList.add("active");
+						if (data.channel === "scripture") {
+							if (data.type === "clear") {
+								updateLiveScreen(null);
+							} else if (data.book && data.chapter && data.verse) {
+								updateLiveScreen(data);
+							}
+						} else if (data.channel === "song") {
+							if (data.type === "clear") {
+								songStatusPill.textContent = "Songs: Clear";
+							} else if (data.text) {
+								songStatusPill.textContent = "Songs: Live";
+							}
 						}
 					} catch (_) {}
 				};
@@ -773,8 +1138,12 @@
 						if (ref === currentRef) div.classList.add("active");
 						div.innerHTML = `<span class="ref mono">${ref}</span><span>${row.text}</span>`;
 						div.dataset.type = "verse";
-						div.onclick = () => sendVerse(row);
 						div._row = row;
+						div.onmouseenter = () => updatePreview(row);
+						div.onclick = () => {
+							updatePreview(row);
+							sendVerse(row);
+						};
 						div.addEventListener("contextmenu", (e) => {
 							e.preventDefault();
 							contextMenuRow = row;
@@ -785,6 +1154,11 @@
 					}
 					resultsEl.appendChild(div);
 				});
+
+				// Pre-stage the first result if available and nothing is staged yet
+				if (!stagedVerse && rows.length > 0 && rows[0].type !== "book") {
+					updatePreview(rows[0]);
+				}
 			}
 
 			document.addEventListener("click", () => {
@@ -803,11 +1177,14 @@
 				contextMenu.style.display = "none";
 			});
 
+			function clearScripture() {
+				sendWs({ channel: "scripture", type: "clear" });
+				updateLiveScreen(null);
+			}
+
 			function sendVerse(row) {
-				const nextRef = `${row.book} ${row.chapter}:${row.verse}`;
-				currentRef = nextRef;
-				currentBookEl.textContent = currentRef;
-				liveDot.classList.add("on");
+				updatePreview(row);
+				updateLiveScreen(row);
 				sendWs({
 					channel: "scripture",
 					book: row.book,
@@ -824,6 +1201,12 @@
 				if (clicked) clicked.classList.add("active");
 			}
 
+			pushLiveBtn.onclick = () => {
+				if (stagedVerse) sendVerse(stagedVerse);
+			};
+
+			clearOutputBtn.onclick = clearScripture;
+
 			function setFocus(index) {
 				const items = resultsEl.querySelectorAll(".result");
 				if (!items.length) return;
@@ -832,7 +1215,20 @@
 				const el = items[focusedIndex];
 				el.classList.add("focused");
 				el.scrollIntoView({ block: "nearest" });
+				if (el._row) {
+					updatePreview(el._row);
+				}
 			}
+
+			// Global hotkeys for swift operator control
+			window.addEventListener("keydown", (e) => {
+				if (e.key === "Escape") {
+					clearScripture();
+				} else if (e.altKey && (e.key === "s" || e.key === "S")) {
+					e.preventDefault();
+					window.location.href = "/song-control";
+				}
+			});
 
 			searchEl.addEventListener("keydown", async (e) => {
 				const items = resultsEl.querySelectorAll(".result");
@@ -879,16 +1275,55 @@
 
 					const target = focusedIndex >= 0 ? items[focusedIndex] : items[0];
 					if (target) target.click();
+					else if (stagedVerse) sendVerse(stagedVerse);
 				}
 			});
+
+			async function checkNdi() {
+				try {
+					const res = await fetch("/api/ndi/status");
+					const data = await res.json();
+					if (data && data.available) {
+						ndiDot.className = "ndi-dot";
+						ndiText.textContent = "NDI: Presenter - Scripture (Active)";
+					} else {
+						ndiDot.className = "ndi-dot off";
+						ndiText.textContent = "NDI: Offline";
+					}
+				} catch (_) {
+					ndiDot.className = "ndi-dot off";
+					ndiText.textContent = "NDI: Offline";
+				}
+			}
+
+			async function syncInitialOutputStatus() {
+				try {
+					const res = await fetch("/api/output/status");
+					const data = await res.json();
+					if (data?.scripture && data.scripture.type !== "clear") {
+						updateLiveScreen(data.scripture);
+						updatePreview(data.scripture);
+					}
+					if (data?.song) {
+						songStatusPill.textContent = data.song.type === "clear" ? "Songs: Clear" : "Songs: Live";
+					}
+				} catch (_) {}
+			}
 
 			async function loadDefault() {
 				try {
 					const res = await fetch(`/api/verse?book=Genesis&chapter=1&verse=1`);
 					const row = await res.json();
-					if (row && row.text && !currentRef) sendVerse(row);
+					if (row && row.text) {
+						updatePreview(row);
+						if (!currentRef) sendVerse(row);
+					}
 				} catch (_) {}
 			}
+
+			checkNdi();
+			setInterval(checkNdi, 5000);
+			syncInitialOutputStatus();
 			loadDefault();
 		</script>
 	</body>

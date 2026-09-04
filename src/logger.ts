@@ -30,8 +30,13 @@ function colorize(text: string, color: string): string {
  *
  * @param port Network port number the server is listening on
  * @param lanIp Local area network IPv4 address or null if not available
+ * @param ndiInfo Optional NDI engine status report
  */
-export async function logServerStart(port: number, lanIp: string | null): Promise<void> {
+export async function logServerStart(
+    port: number,
+    lanIp: string | null,
+    ndiInfo?: { available: boolean; sources: string[]; error: string | null }
+): Promise<void> {
     const baseUrl = `http://localhost:${port}`;
     
     console.log(colorize("\n--- Presenter Server Active ---", `${BOLD}${CYAN}`));
@@ -40,6 +45,15 @@ export async function logServerStart(port: number, lanIp: string | null): Promis
     console.log(`${colorize("Output:      ", DIM)} ${colorize(`${baseUrl}/output`, YELLOW)}`);
     console.log(`${colorize("Song Control:", DIM)} ${colorize(`${baseUrl}/song-control`, MAGENTA)}`);
     console.log(`${colorize("Song Output: ", DIM)} ${colorize(`${baseUrl}/song`, MAGENTA)}`);
+
+    if (ndiInfo?.available) {
+        console.log(`${colorize("NDI Video:   ", BOLD)} ${colorize("Active (30fps RGBA)", GREEN)}`);
+        for (const src of ndiInfo.sources) {
+            console.log(`${colorize("  • NDI Feed:", DIM)} ${colorize(src, CYAN)}`);
+        }
+    } else if (ndiInfo) {
+        console.log(`${colorize("NDI Video:   ", DIM)} ${colorize(`Disabled (${ndiInfo.error ?? "Runtime not found"})`, YELLOW)}`);
+    }
     
     if (lanIp) {
         const lanUrl = `http://${lanIp}:${port}`;

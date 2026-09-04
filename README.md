@@ -46,9 +46,33 @@ Songs support a `display_mode` setting (e.g. `lower` or `background`) that contr
 
 All control and output pages connect to a shared WebSocket at `/ws`. When the operator selects a verse or a song section, the message is broadcast to every connected client. Late-joining screens (like a projector that was just plugged in) automatically receive the last known state for both the scripture and song channels so they are always up to date.
 
+## NDI Output Streaming
+
+Presenter broadcasts both live presentation channels over the local area network as **NDI® (Network Device Interface)** video feeds. Broadcast software such as **OBS Studio**, **vMix**, **TriCaster**, or **Wirecast** can auto-discover and mix them directly without browser capture or screen scraping:
+
+- **`Presenter - Scripture`**: Broadcasts the active scripture slide in 1080p with clean typography and transparency.
+- **`Presenter - Songs`**: Broadcasts worship lyrics in 1080p, preserving transparency for lower-thirds (`lower`) or rendered card backgrounds (`background`).
+
+### Using NDI in OBS / vMix
+1. Ensure the NDI runtime is installed on your system (e.g. NDI SDK or OBS NDI plugin).
+2. In OBS Studio, add a new **NDI™ Source**.
+3. Under **Source name**, select `Presenter - Scripture` or `Presenter - Songs`.
+4. The feed delivers 30fps RGBA frames with full alpha transparency, ideal for overlaying verses and lyrics directly on your live camera mix.
+
+> *Note: If NDI libraries are not present on the host, the server gracefully logs a notice and continues serving standard web outputs without interruption.*
+
+## Control Page Switcher & Dual Monitors
+
+Both control interfaces (`/` and `/song-control`) provide an integrated presentation workflow:
+
+- **Quick Navigation Switcher**: Easily toggle between Scripture and Song Control in the top header (or use `Alt+S` for Songs and `Alt+B` for Scripture).
+- **Stage Preview Monitor**: A 16:9 preview dock showing staged verses or lyrics before sending them live, complete with a **"Push Live ↵"** button.
+- **Live Output Monitor**: A real-time 16:9 monitor displaying what is currently active on the public screens and NDI streams, complete with a pulsing **LIVE** indicator, a **"✕ Clear"** button (`Esc`), and a popup button to open the public display window.
+- **Live Channel Sync**: Each control page displays the real-time status of both NDI feeds and the companion channel.
+
 ## API
 
-The server exposes a small REST API for managing scripture and songs:
+The server exposes a REST API for managing scripture, songs, and live output status:
 
 - `GET /api/search?q=...` — Search for scriptures by reference, book name, or text
 - `GET /api/verse?book=...&chapter=...&verse=...` — Fetch a specific verse
@@ -57,6 +81,8 @@ The server exposes a small REST API for managing scripture and songs:
 - `GET /api/songs/:id` — Fetch a full song with all sections and lines
 - `PUT /api/songs/:id` — Update an existing song
 - `DELETE /api/songs/:id` — Delete a song
+- `GET /api/ndi/status` — Check NDI runtime availability and active sources
+- `GET /api/output/status` — Get current live state of scripture and song outputs
 
 ## Tech Stack
 

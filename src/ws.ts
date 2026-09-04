@@ -1,5 +1,6 @@
 import type { ServerWebSocket } from "bun";
 import type { ChannelMessage } from "./types";
+import { onScriptureUpdate, onSongUpdate } from "./ndi";
 
 /**
  * Connected WebSocket clients pool.
@@ -53,8 +54,10 @@ export function handleWsMessage(_ws: ServerWebSocket<unknown>, message: string |
         if (data && typeof data === "object") {
             if (data.channel === "song") {
                 lastSong = str;
+                onSongUpdate(data);
             } else if (data.channel === "scripture") {
                 lastVerse = str;
+                onScriptureUpdate(data);
             }
         }
     } catch {
@@ -64,4 +67,18 @@ export function handleWsMessage(_ws: ServerWebSocket<unknown>, message: string |
     for (const client of clients) {
         client.send(str);
     }
+}
+
+/**
+ * Get the last broadcasted scripture payload string or null.
+ */
+export function getLastVerse(): string | null {
+    return lastVerse;
+}
+
+/**
+ * Get the last broadcasted song payload string or null.
+ */
+export function getLastSong(): string | null {
+    return lastSong;
 }
