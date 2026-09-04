@@ -1,3 +1,18 @@
+// On Windows, detach and hide any console window immediately when launched in GUI mode
+if (process.platform === "win32") {
+    try {
+        const { dlopen, FFIType } = await import("bun:ffi");
+        const kernel32 = dlopen("kernel32.dll", {
+            FreeConsole: {
+                args: [],
+                returns: FFIType.bool,
+            },
+        });
+        kernel32.symbols.FreeConsole();
+    } catch {
+        // Fallback silently if FreeConsole / FFI is unavailable
+    }
+}
 
 const worker = new Worker("./index.ts");
 

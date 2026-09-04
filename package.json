@@ -32,7 +32,7 @@
     "build:gui:linux-arm64": "bun build --compile --minify --sourcemap --target=bun-linux-arm64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-linux-arm64",
     "build:gui:macos": "bun build --compile --minify --sourcemap --target=bun-darwin-x64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-macos-x64",
     "build:gui:macos-arm64": "bun build --compile --minify --sourcemap --target=bun-darwin-arm64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-macos-arm64",
-    "build:gui:windows": "bun build --compile --minify --sourcemap --target=bun-windows-x64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-windows-x64.exe",
+    "build:gui:windows": "bun build --compile --minify --sourcemap --target=bun-windows-x64 --windows-hide-console ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-windows-x64.exe",
     "build:assets": "bun run scripts/copy-assets.ts",
     "build:windows": "bun run build:server:windows && bun run build:gui:windows && bun run build:assets && bun run stamp:metadata",
     "build:linux": "bun run build:server:linux && bun run build:gui:linux && bun run build:assets",
