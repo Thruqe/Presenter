@@ -33,8 +33,7 @@
     "build:gui:macos": "bun build --compile --minify --sourcemap --target=bun-darwin-x64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-macos-x64",
     "build:gui:macos-arm64": "bun build --compile --minify --sourcemap --target=bun-darwin-arm64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-macos-arm64",
     "build:gui:windows": "bun build --compile --minify --sourcemap --target=bun-windows-x64 ./src/gui.ts ./src/index.ts --outfile dist/presenter-gui-windows-x64.exe",
-    "build:gui:all": "bun run build:gui:linux && bun run build:gui:linux-arm64 && bun run build:gui:macos && bun run build:gui:macos-arm64 && bun run build:gui:windows",
-    "build:assets": "mkdir -p dist/public dist/db && cp -r public/* dist/public/ && cp -r db/* dist/db/ && cp assets/icon.ico dist/ 2>/dev/null || true && cp assets/icon.png dist/ 2>/dev/null || true",
+    "build:assets": "bun run scripts/copy-assets.ts",
     "build:windows": "bun run build:server:windows && bun run build:gui:windows && bun run build:assets && bun run stamp:metadata",
     "build:linux": "bun run build:server:linux && bun run build:gui:linux && bun run build:assets",
     "build:all": "bun run build:server:all && bun run build:gui:all && bun run build:assets"

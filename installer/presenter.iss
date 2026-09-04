@@ -70,9 +70,9 @@ Source: "..\dist\presenter-server-windows-x64.exe"; DestDir: "{app}"; DestName: 
 ; Application Icon
 Source: "{#MyAppIcon}"; DestDir: "{app}"; DestName: "icon.ico"; Flags: ignoreversion
 ; Web UI & Output Assets
-Source: "..\dist\public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; SQLite Databases (Scripture KJV & Songs)
-Source: "..\dist\db\*"; DestDir: "{app}\db"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\db\*"; DestDir: "{app}\db"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Documentation & License
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
